@@ -1,6 +1,7 @@
 from typing import Any, Callable, Generator
 
-from .tree.linked2 import Node
+from .value import Value
+from .tree.linked3 import Node
 
 
 class Base(Node):
@@ -9,14 +10,21 @@ class Base(Node):
 
 class Property:
 
-    def __init__(self, value: Any):
+    def __init__(self, value: Value):
         self.value = value
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.value!r})"
 
+    def set_value(self, value: Any):
+        self.value = self.value.check_value(value)
+
+    # @classmethod
+    # def from_xml(cls, elem: ET.Element) -> "RealValue":
+
 
 class Field(Property):
+    # class Field:
     def __init__(
         self, name: str, producer: Callable[..., Any], argv: tuple | object, **kwargs
     ):

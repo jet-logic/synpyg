@@ -1,32 +1,10 @@
-import xml.etree.ElementTree as ET
-from typing import Dict, Optional
-from .value import Integer, Real
+from typing import Optional
+from .value import Color, Integer, Real, Vector, Boolean
 from .base import Base, Field, Property, param, params
+import xml.etree.ElementTree as ET
 
 
-class Layer(Base):
-    """
-    A Synfig layer
-    """
-
-    TAG = "layer"
-
-    def __init__(
-        self,
-        type: str,
-        version: str,
-        desc: Optional[str] = None,
-        active: bool = True,
-        exclude_from_rendering: bool = False,
-        group: Optional[str] = None,
-    ):
-        self.type: str = type
-        self.version: str = version
-        self.desc: Optional[str] = desc
-        self.active: bool = active
-        self.exclude_from_rendering: bool = exclude_from_rendering
-        self.group: Optional[str] = group
-
+class WithParams:
     def __init_subclass__(cls, /, **kwargs):
         super().__init_subclass__(**kwargs)
         _params: list[tuple[str, Field, object]] = []
@@ -36,6 +14,12 @@ class Layer(Base):
                 _params.append((k, v, cls.__annotations__.get(k)))
         # print("__init_subclass__", cls, _params)
         cls._params = _params
+
+    def _enum_params(self):
+        for k, v in self.__dict__.items():
+            if isinstance(v, Property):
+                assert not isinstance(v, Field)
+                yield k, v
 
     def __getattr__(self, name):
         for k, g, t in params(self):
@@ -54,7 +38,7 @@ class Layer(Base):
 
                     warn(f"__getattr__ {self.__class__.__name__} {k} {(p, a)} {t}")
                     raise
-                # print("FIELD", name, v, v.__class__.__name__)
+                print("FIELD", name, v, v.__class__.__name__)
                 q = Property(v)
                 setattr(self, name, q)
                 return q
@@ -65,17 +49,104 @@ class Layer(Base):
                 f"{self.__class__.__name__} has no attribute {name}"
             ) from None
 
-    def _enum_params(self):
-        for k, v in self.__dict__.items():
-            if isinstance(v, Property):
-                assert not isinstance(v, Field)
-                yield k, v
 
+class Layer(WithParams, Base):
+    """
+    A Synfig layer
+    """
 
-class SolidColorLayer(Layer):
+    TAG = "layer"
     z_depth: Property = param("z_depth", Real, 0.0)
     amount: Property = param("amount", Real, 1.0)
     blend_method: Property = param("blend_method", Integer, 1)
 
-    def __init__(self):
-        super().__init__("solid", "1.0")
+    def __init__(
+        self,
+        type: str,
+        version: str,
+        desc: Optional[str] = None,
+        active: bool = True,
+        exclude_from_rendering: bool = False,
+        group: Optional[str] = None,
+    ):
+        super().__init__()
+        self.type: str = type
+        self.version: str = version
+        self.desc: Optional[str] = desc
+        self.active: bool = active
+        self.exclude_from_rendering: bool = exclude_from_rendering
+        self.group: Optional[str] = group
+
+    def to_xml_element(self):
+        element = ET.Element(
+            "layer",
+            {
+                "type": self.type,
+                "version": self.version,
+            },
+        )
+
+        if self.desc is not None:
+            element.set("desc", self.desc)
+
+        if self.active is not None:
+            element.set("active", str(self.active).lower())
+
+        if self.exclude_from_rendering:
+            element.set("exclude_from_rendering", "true")
+
+        if self.group is not None:
+            element.set("group", self.group)
+
+        # Initialize and serialize all declared parameters
+        for name, prop in self._enum_params():
+            param = ET.SubElement(element, "param", {"name": name})
+            param.append(prop.value.to_xml_element())
+
+        return element
+
+
+class SolidColorLayer(Layer):
+
+    color: Property = param("color", Color, (0.3, 0.4, 0.5, 0.6))
+
+    def __init__(self, desc="", **kwargs):
+        super().__init__("solid_color", version="0.1", desc=desc, **kwargs)
+
+
+class CircleLayer(Layer):
+
+    color: Property = param("color", Color, (0.3, 0.4, 0.5, 1.0))
+    radius: Property = param("radius", Real, 1.0)
+    feather: Property = param("feather", Real, 0.0)
+    origin: Property = param("origin", Vector, (0.0, 0.0))
+    invert: Property = param("invert", Boolean, False)
+    falloff: Property = param("falloff", Integer, 1)
+
+    def __init__(self, desc="", **kwargs):
+        super().__init__(
+            "circle",
+            version="0.1",
+            desc=desc,
+            **kwargs,
+        )
+
+
+# class GroupLayer(Layer):
+#     z_depth: Property = param("z_depth", Real, 0.0)
+#     amount: Property = param("amount", Real, 1.0)
+#     blend_method: Property = param("blend_method", Integer, 1)
+
+#     def __init__(self, desc="Group", **kwargs):
+#         super().__init__(
+#             "group",
+#             version="0.1",
+#             desc=desc,
+#             **kwargs,
+#         )
+
+#         # Import locally to avoid the layer.py <-> canvas.py
+#         # circular import.
+#         from .canvas import Canvas
+
+#         self.canvas = Canvas()
