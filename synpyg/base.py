@@ -20,6 +20,7 @@ class Property:
 
     def set_value(self, value: Any):
         self.value = self.value.check_value(value)
+        # self.value =  self.__val__.check_value(value)
 
 
 class Field(Property):
