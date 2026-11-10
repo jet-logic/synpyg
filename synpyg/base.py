@@ -1,5 +1,4 @@
 from typing import Any, Callable, Generator
-
 from .value import Value
 from .tree.linked3 import Node
 
@@ -9,6 +8,9 @@ class Base(Node):
 
 
 class Property:
+    """
+    A Synfig param
+    """
 
     def __init__(self, value: Value):
         self.value = value
@@ -19,12 +21,9 @@ class Property:
     def set_value(self, value: Any):
         self.value = self.value.check_value(value)
 
-    # @classmethod
-    # def from_xml(cls, elem: ET.Element) -> "RealValue":
-
 
 class Field(Property):
-    # class Field:
+    # subclassed Property so VS Code will not complain
     def __init__(
         self, name: str, producer: Callable[..., Any], argv: tuple | object, **kwargs
     ):

@@ -2,7 +2,7 @@ import unittest
 
 from synpyg.base import Property
 from synpyg.canvas import Canvas
-from synpyg.value import Integer
+from synpyg.value import Integer, Real
 
 
 class Test(unittest.TestCase):
@@ -18,10 +18,11 @@ class Test(unittest.TestCase):
 
         s = SolidColorLayer()
         self.assertIsInstance(s.amount, Property)
-        print(s.amount)
+        assert isinstance(s.amount.value, Real)
         self.assertEqual(s.amount.value.value, 1.0)
         self.assertIsInstance(s.blend_method, Property)
         self.assertIsInstance(s.blend_method.value, Integer)
+        assert isinstance(s.blend_method.value, Integer)
         self.assertIs(s.blend_method.value.value, 1)
         self.assertSequenceEqual(
             [k for k, v in s._enum_params()], ["amount", "blend_method"]
@@ -44,7 +45,7 @@ class Test(unittest.TestCase):
         sol = root.add_solid_color_layer("Background")
         self.assertEqual(sol.desc, "Background")
         print(sol.color.value)
-        sol.color.set_value((1, 0, 0, 1))
+        sol.color.set_value((1, 0, 1, 1))
         print(sol.color.value)
         root.save_xml("/tmp/test.sif")
 

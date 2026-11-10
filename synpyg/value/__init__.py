@@ -109,21 +109,12 @@ class Time(Scalar):
         return ET.Element("time", {"value": self.value})
 
 
-class Color(Value):
-    r: float
-    g: float
-    b: float
-    a: float = 1.0
-    tag = "color"
+class Vec(Value):
+    value: tuple[float]
 
-    def __init__(
-        self, r: float = 0.5, g: float = 0.5, b: float = 0.5, a: float = 1.0, **kwargs
-    ):
+    def __init__(self, value: tuple[float], **kwargs) -> None:
         super().__init__(**kwargs)
-        self.r = r
-        self.g = g
-        self.b = b
-        self.a = a
+        self.value = value
 
     def __repr__(self) -> str:
         extras = ""
@@ -131,39 +122,41 @@ class Color(Value):
             extras += f", id={self.id!r}"
         if self.guid is not None:
             extras += f", guid={self.guid!r}"
-        return f"{self.__class__.__name__}({(self.r,self.b,self.g,self.a)!r}{extras})"
+        return f"{self.__class__.__name__}({self.value!r}{extras})"
 
     def check_value(self, value: Any):
-        if isinstance(value, (list, tuple)):
-            return Color(*value)
-        raise ValueError(f"Unexpected color {value}")
+        if isinstance(value, list):
+            return self.__class__(tuple(value))
+        if isinstance(value, tuple):
+            return self.__class__(value)
+        raise ValueError(f"Unexpected vector {value}")
+
+
+class Color(Vec):
+    tag = "color"
+
+    def __init__(self, value, **kwargs):
+        assert len(value) == 4
+        super().__init__(value, **kwargs)
 
     def to_xml_element(self):
         element = ET.Element("color")
 
-        for channel in ("r", "g", "b", "a"):
-            ET.SubElement(element, channel).text = str(getattr(self, channel))
+        for channel, n in zip(("r", "g", "b", "a"), self.value):
+            ET.SubElement(element, channel).text = str(n)
 
         return element
 
 
-class Vector(Value):
-    x: float
-    y: float
+class Vector(Vec):
     tag = "vector"
 
-    def __init__(self, x=0.0, y=0.0, **kwargs):
-        super().__init__(**kwargs)
-        self.x = x
-        self.y = y
-
-    def check_value(self, value):
-        if isinstance(value, (list, tuple)) and len(value) == 2:
-            return Vector(*value)
-        raise ValueError(f"Unexpected vector {value}")
+    def __init__(self, value, **kwargs):
+        assert len(value) == 2
+        super().__init__(value, **kwargs)
 
     def to_xml_element(self):
         element = ET.Element("vector")
-        ET.SubElement(element, "x").text = str(self.x)
-        ET.SubElement(element, "y").text = str(self.y)
+        for s, n in zip(("x", "y"), self.value):
+            ET.SubElement(element, s).text = str(n)
         return element

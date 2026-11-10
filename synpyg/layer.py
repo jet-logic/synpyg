@@ -1,10 +1,12 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from .value import Color, Integer, Real, Vector, Boolean
 from .base import Base, Field, Property, param, params
 import xml.etree.ElementTree as ET
 
 
 class WithParams:
+    _params: list[tuple[str, Field, object]]
+
     def __init_subclass__(cls, /, **kwargs):
         super().__init_subclass__(**kwargs)
         _params: list[tuple[str, Field, object]] = []
@@ -38,7 +40,7 @@ class WithParams:
 
                     warn(f"__getattr__ {self.__class__.__name__} {k} {(p, a)} {t}")
                     raise
-                print("FIELD", name, v, v.__class__.__name__)
+                # print("FIELD", name, v, v.__class__.__name__)
                 q = Property(v)
                 setattr(self, name, q)
                 return q
@@ -108,7 +110,7 @@ class Layer(WithParams, Base):
 
 class SolidColorLayer(Layer):
 
-    color: Property = param("color", Color, (0.3, 0.4, 0.5, 0.6))
+    color: Property = param("color", Color, [0.3, 0.4, 0.5, 0.6])
 
     def __init__(self, desc="", **kwargs):
         super().__init__("solid_color", version="0.1", desc=desc, **kwargs)
@@ -116,7 +118,7 @@ class SolidColorLayer(Layer):
 
 class CircleLayer(Layer):
 
-    color: Property = param("color", Color, (0.3, 0.4, 0.5, 1.0))
+    color: Property = param("color", Color, [0.3, 0.4, 0.5, 1.0])
     radius: Property = param("radius", Real, 1.0)
     feather: Property = param("feather", Real, 0.0)
     origin: Property = param("origin", Vector, (0.0, 0.0))
@@ -124,29 +126,8 @@ class CircleLayer(Layer):
     falloff: Property = param("falloff", Integer, 1)
 
     def __init__(self, desc="", **kwargs):
-        super().__init__(
-            "circle",
-            version="0.1",
-            desc=desc,
-            **kwargs,
-        )
+        super().__init__("circle", version="0.1", desc=desc, **kwargs)
 
 
 # class GroupLayer(Layer):
-#     z_depth: Property = param("z_depth", Real, 0.0)
-#     amount: Property = param("amount", Real, 1.0)
-#     blend_method: Property = param("blend_method", Integer, 1)
-
-#     def __init__(self, desc="Group", **kwargs):
-#         super().__init__(
-#             "group",
-#             version="0.1",
-#             desc=desc,
-#             **kwargs,
-#         )
-
-#         # Import locally to avoid the layer.py <-> canvas.py
-#         # circular import.
-#         from .canvas import Canvas
-
-#         self.canvas = Canvas()
+#     # TODO

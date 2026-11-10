@@ -1,5 +1,5 @@
 from typing import Any, Optional
-from .layer import CircleLayer, SolidColorLayer
+from .layer import CircleLayer, Layer, SolidColorLayer
 from .base import Base
 
 import xml.etree.ElementTree as ET
@@ -7,6 +7,10 @@ from pathlib import Path
 
 
 class Canvas(Base):
+    """
+    A Synfig canvas
+    """
+
     def __init__(
         self,
         version="1.2",
@@ -60,6 +64,7 @@ class Canvas(Base):
         for child in self:
             if not hasattr(child, "to_xml_element"):
                 raise TypeError(f"Cannot serialize {type(child).__name__}")
+            assert isinstance(child, Layer)
 
             root.append(child.to_xml_element())
 
