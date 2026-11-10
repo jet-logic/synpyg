@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional
-from .value import Color, Integer, Real, Vector, Boolean
+from .value import Color, Integer, Real, Time, Vector, Boolean
 from .base import Base, Field, Property, param, params
-import xml.etree.ElementTree as ET
 
 
 class WithParams:
@@ -129,5 +128,71 @@ class CircleLayer(Layer):
         super().__init__("circle", version="0.1", desc=desc, **kwargs)
 
 
-# class GroupLayer(Layer):
-#     # TODO
+class MotionBlurLayer(Layer):
+    """
+    A Synfig Motion Blur layer with all standard parameters.
+    """
+
+    aperture: Property = param("aperture", Time, "0f")
+    subsamples_factor: Property = param("subsamples_factor", Real, 1.0)
+    subsampling_type: Property = param("subsampling_type", Integer, 0)
+    subsample_start_amount: Property = param("subsample_start_amount", Real, 0.0)
+    subsample_end_amount: Property = param("subsample_end_amount", Real, 1.0)
+
+    def __init__(self, desc="", **kwargs):
+        super().__init__("motion_blur", version="0.1", desc=desc, **kwargs)
+
+
+class GroupLayer(Layer):
+    """
+    A Synfig Group layer (pastecanvas) that can either contain inline child layers
+    or reference an external/exported canvas via the 'use' attribute.
+    """
+
+    origin: Property = param("origin", Vector, (0.0, 0.0))
+
+    def __init__(self, desc="", use: Optional[str] = None, **kwargs):
+        super().__init__("paste_canvas", version="0.1", desc=desc, **kwargs)
+        self.use = use
+
+    def add_solid_color_layer(self, *args, before: Base | None = None, **kwargs):
+        e = SolidColorLayer(*args, **kwargs)
+        self.insert_before(before, e)
+        return e
+
+    def add_circle_layer(self, *args, before: Base | None = None, **kwargs):
+        layer = CircleLayer(*args, **kwargs)
+        self.insert_before(before, layer)
+        return layer
+
+    def add_group_layer(self, *args, before: Base | None = None, **kwargs):
+        layer = GroupLayer(*args, **kwargs)
+        self.insert_before(before, layer)
+        return layer
+
+    def add_motion_blur_layer(self, *args, before: Base | None = None, **kwargs):
+        layer = MotionBlurLayer(*args, **kwargs)
+        self.insert_before(before, layer)
+        return layer
+
+    def to_xml_element(self):
+        element = super().to_xml_element()
+
+        canvas_param = ET.SubElement(element, "param", {"name": "canvas"})
+
+        if self.use:
+            # If using a reference, set the 'use' attribute on the canvas element
+            ET.SubElement(canvas_param, "canvas", {"use": self.use})
+        else:
+            # Otherwise, serialize inline child layers as before
+            sub_canvas = ET.SubElement(canvas_param, "canvas")
+            for child in self:
+                if not hasattr(child, "to_xml_element"):
+                    raise TypeError(f"Cannot serialize {type(child).__name__}")
+                assert isinstance(child, Layer)
+                sub_canvas.append(child.to_xml_element())
+
+        return element
+
+
+from xml.etree import ElementTree as ET

@@ -2,7 +2,7 @@ import unittest
 
 from synpyg.base import Property
 from synpyg.canvas import Canvas
-from synpyg.value import Integer, Real
+from synpyg.value import Color, Integer, Real
 
 
 class Test(unittest.TestCase):
@@ -12,6 +12,8 @@ class Test(unittest.TestCase):
         s = SolidColorLayer()
         print(repr(s.amount))
         print(repr(s.blend_method))
+        c = Color((1.0, 1.0, 1.0, 0.0))
+        self.assertEqual(repr(c), "Color((1.0, 1.0, 1.0, 0.0))")
 
     def test_dynamic_property(self):
         from synpyg.layer import SolidColorLayer
@@ -19,11 +21,11 @@ class Test(unittest.TestCase):
         s = SolidColorLayer()
         self.assertIsInstance(s.amount, Property)
         assert isinstance(s.amount.value, Real)
-        self.assertEqual(s.amount.value.value, 1.0)
+        self.assertEqual(s.amount.value.data, 1.0)
         self.assertIsInstance(s.blend_method, Property)
         self.assertIsInstance(s.blend_method.value, Integer)
         assert isinstance(s.blend_method.value, Integer)
-        self.assertIs(s.blend_method.value.value, 1)
+        self.assertIs(s.blend_method.value.data, 1)
         self.assertSequenceEqual(
             [k for k, v in s._enum_params()], ["amount", "blend_method"]
         )
@@ -42,11 +44,35 @@ class Test(unittest.TestCase):
             end_time="5s",
             view_box="-10 5.625 10 -5.625",
         )
-        sol = root.add_solid_color_layer("Background")
-        self.assertEqual(sol.desc, "Background")
-        print(sol.color.value)
-        sol.color.set_value((1, 0, 1, 1))
-        print(sol.color.value)
+        if sol := root.add_solid_color_layer("Background"):
+            self.assertEqual(sol.desc, "Background")
+            print(sol.color.value)
+            sol.color.set_value((1, 0, 1, 1))
+            print(sol.color.value)
+
+        if g := root.add_group_layer():
+            if mbl := g.add_motion_blur_layer("MotionBlur"):
+                mbl.aperture.set_value(0.75)
+                mbl.subsample_start_amount.set_value(0)
+                mbl.subsample_end_amount.set_value(1)
+                mbl.subsampling_type.set_value(3)
+            if cir := g.add_circle_layer("MovingBall"):
+                cir.color.set_value([0, 0.8, 0.8, 1.0])
+                cir.radius.set_value(1.2)
+
+        # ET.SubElement(blur_layer, "param", {"name": "aperture"}).append(
+        #     ET.Element("real", {"value": "0.75"})
+        # )  # Wide shutter angle for visible blur
+        # ET.SubElement(blur_layer, "param", {"name": "subsample_start"}).append(
+        #     ET.Element("real", {"value": "0.0"})
+        # )
+        # ET.SubElement(blur_layer, "param", {"name": "subsample_end"}).append(
+        #     ET.Element("real", {"value": "1.0"})
+        # )
+        # ET.SubElement(blur_layer, "param", {"name": "type"}).append(
+        #     ET.Element("integer", {"value": "3"})
+        # )  # Gaussian blur mode
+
         root.save_xml("/tmp/test.sif")
 
 
