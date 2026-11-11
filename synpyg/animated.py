@@ -9,16 +9,12 @@ def attr(name="") -> dict[str, Any]:
     return {"attr": {"name": name}}
 
 
-def parm(name: str, typed: type[Value]) -> dict[str, Any]:
-    return {"parm": {"name": name, "typed": typed}}
+# def parm(name: str, typed: type[Value]) -> dict[str, Any]:
+#     return {"parm": {"name": name, "typed": typed}}
 
 
-def _parm():
-    return field(init=False, metadata={"attr": True})
-
-
-# def partial
-# attr = partial(dataclass, init=False)
+def _parm(name: str, typed: type[Value]):
+    return field(init=False, metadata={"parm": {"name": name, "typed": typed}})
 
 
 def attr2():

@@ -1,7 +1,7 @@
 from typing import Any, Callable, Generator, Generic, TypeVar
 
 from .valuenode import WithXML
-from .animated import Animated
+from .animated import Animated, _parm
 from .value import Value
 from .tree.linked3 import Node
 
@@ -48,46 +48,47 @@ class Property(WithXML):
         return element
 
 
-class PreProp(Property):
-    # subclassed Property so VS Code will not complain
-    def __init__(self, name: str, typed: type[Value]):
-        self.name = name
-        self.typed = typed
+# class PreProp(Property):
+#     # subclassed Property so VS Code will not complain
+#     def __init__(self, name: str, typed: type[Value]):
+#         self.name = name
+#         self.typed = typed
 
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.name!r})"
-
-
-def paramls(inst: object) -> Generator[list[tuple[str, PreProp]], Any, None]:
-    for c in inst.__class__.__mro__:
-        try:
-            f: list[tuple[str, PreProp]] = c._params  # type: ignore
-        except AttributeError:
-            pass
-        else:
-            assert isinstance(f, list)
-            yield f
+#     def __repr__(self) -> str:
+#         return f"{self.__class__.__name__}({self.name!r})"
 
 
-def params(inst: object) -> Generator[tuple[str, PreProp], Any, None]:
-    for v in paramls(inst):
-        yield from v
+# def paramls(inst: object) -> Generator[list[tuple[str, PreProp]], Any, None]:
+#     for c in inst.__class__.__mro__:
+#         try:
+#             f: list[tuple[str, PreProp]] = c._params  # type: ignore
+#         except AttributeError:
+#             pass
+#         else:
+#             assert isinstance(f, list)
+#             yield f
 
 
-_T = TypeVar("_T")
+# def params(inst: object) -> Generator[tuple[str, PreProp], Any, None]:
+#     for v in paramls(inst):
+#         yield from v
 
 
-class Pro(Generic[_T]):
-    pass
+# _T = TypeVar("_T")
+
+
+# class Pro(Generic[_T]):
+#     pass
 
 
 def param(name, typed: type[Value]):
-    return PreProp(name, typed)
+    # return PreProp(name, typed)
+    return _parm(name, typed)
 
 
-def param2(cls, name, typed: type[Value]):
-    return PreProp(name, typed)
-    # return 5# PreProp(name, typed)
+# def param2(cls, name, typed: type[Value]):
+#     return PreProp(name, typed)
+#     # return 5# PreProp(name, typed)
 
 
 class TestXML(WithXML):

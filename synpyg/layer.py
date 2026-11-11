@@ -1,42 +1,44 @@
 from dataclasses import dataclass, field, fields
 from typing import Optional
 
-from .animated import parm
+# from .animated import parm
 from .valuenode import WithXML
 from .value import Color, Integer, Real, Time, Vector, Boolean
-from .base import Base, PreProp, Property, param, paramls, params
+from .base import Base, Property, param
+
+# from .base import Base, PreProp, Property, param, paramls, params
 
 
 @dataclass(eq=False, kw_only=True, init=False)
 class WithParams:
-    _params: list[tuple[str, PreProp]]  # class attribute from __init_subclass__
+    # _params: list[tuple[str, PreProp]]  # class attribute from __init_subclass__
 
-    def __init_subclass__(cls, /, **kwargs):
-        super().__init_subclass__(**kwargs)
-        _params: list[tuple[str, PreProp]] = []
-        for k, v in tuple(cls.__dict__.items()):
-            if isinstance(v, PreProp):
-                delattr(cls, k)
-                _params.append((k, v))
-        # print("__init_subclass__", cls, _params)
-        cls._params = _params
+    # def __init_subclass__(cls, /, **kwargs):
+    #     super().__init_subclass__(**kwargs)
+    #     _params: list[tuple[str, PreProp]] = []
+    #     for k, v in tuple(cls.__dict__.items()):
+    #         if isinstance(v, PreProp):
+    #             delattr(cls, k)
+    #             _params.append((k, v))
+    #     # print("__init_subclass__", cls, _params)
+    #     cls._params = _params
 
     def _enum_params(self):
         for k, v in self.__dict__.items():
             if isinstance(v, Property):
-                assert not isinstance(v, PreProp)
+                # assert not isinstance(v, PreProp)
                 yield k, v
 
     def __getattr__(self, name):
-        for k, f in params(self):
-            if k == name:
-                p = Property()
-                p.typed = f.typed
-                p._name = f.name
-                # p = Property(None, f.name)
-                # p.typed = f.typed
-                setattr(self, name, p)
-                return p
+        # for k, f in params(self):
+        #     if k == name:
+        #         p = Property()
+        #         p.typed = f.typed
+        #         p._name = f.name
+        #         # p = Property(None, f.name)
+        #         # p.typed = f.typed
+        #         setattr(self, name, p)
+        #         return p
         for f in fields(self):
             if f.name == name:
                 if m := f.metadata.get("parm"):
@@ -56,12 +58,21 @@ class WithParams:
 
     def set_params(self, **kwargs):
         def _set(k, v):
-            for ls in paramls(self):
-                for n, f in ls:
-                    if k == n:
+            # for ls in paramls(self):
+            #     for n, f in ls:
+            #         if k == n:
+            #             p = Property()
+            #             p._name = f.name
+            #             p.typed = f.typed
+            #             p.set_value(v)
+            #             setattr(self, k, p)
+            #             return
+            for f in fields(self):
+                if f.name == k:
+                    if m := f.metadata.get("parm"):
                         p = Property()
                         p._name = f.name
-                        p.typed = f.typed
+                        p.typed = m.get("typed")
                         p.set_value(v)
                         setattr(self, k, p)
                         return
@@ -83,7 +94,7 @@ class Layer(WithParams, WithXML, Base):
     z_depth: Property = param("z_depth", Real)
     amount: Property = param("amount", Real)
     blend_method: Property = param("blend_method", Integer)
-    other: Property = field(init=False, metadata=parm("other", Vector))
+    # other: Property = field(init=False, metadata=parm("other", Vector))
 
     def __init__(
         self,
@@ -200,7 +211,7 @@ class GroupLayer(Layer, Grouping):
     """
 
     origin: Property = param("origin", Vector)
-    extra: Property = field(init=False, metadata=parm("extra", Vector))
+    # extra: Property = field(init=False, metadata=parm("extra", Vector))
 
     def __init__(self, desc="", use: Optional[str] = None, **kwargs):
         super().__init__("group", version="0.1", desc=desc, **kwargs)
