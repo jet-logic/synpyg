@@ -43,6 +43,7 @@ class Test(unittest.TestCase):
         self.assertSequenceEqual(
             [k for k, v in s._enum_params()], ["amount", "blend_method", "flag"]
         )
+        s.other.set_value([6, 7])
 
     def test_write(self):
         root = Canvas(

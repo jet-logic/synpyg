@@ -149,7 +149,7 @@ class Vec(Const):
     def check_value(cls, value: Any):
         if isinstance(value, (list, tuple)):
             return cls(value)
-        raise ValueError(f"Unexpected {cls.__name__} {value}")
+        raise ValueError(f"Unexpected {cls.__name__} {value!r}")
 
 
 class Color(Vec):

@@ -104,20 +104,26 @@ class Node(Base):
             cur = next
 
     def insert_before(self, which: Base | bool | None, *nodes: Base):
-        if which:
-            if which is True:
-                child = self.first_child()
-                assert child
-            else:
-                child = which
+        if which is True:
+            child = self.first_child() or self._end
+        elif which:
+            child = which
         else:
             child = self._end
         if child._parent is not self:
-            raise RuntimeError(f"child not found")
-        prev = child._prev or self
-        for node in nodes:
-            if node is not child:
-                node._detach()._attach(prev, child, self)
+            raise RuntimeError("child not found")
+
+        nodes = [n for n in nodes if n is not child]
+        for n in nodes:
+            if n is self or any(a is n for a in self.ancestors()):
+                raise RuntimeError("cannot insert a node into itself or its descendant")
+        for n in nodes:
+            n._detach()
+
+        prev = child._prev
+        for n in nodes:
+            n._attach(prev, child, self)
+            prev = n._end
 
     def append_child(self, *nodes: Base):
         self.insert_before(self._end, *nodes)

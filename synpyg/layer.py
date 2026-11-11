@@ -1,9 +1,13 @@
+from dataclasses import dataclass, field, fields
 from typing import Optional
+
+from .animated import parm
 from .valuenode import WithXML
 from .value import Color, Integer, Real, Time, Vector, Boolean
 from .base import Base, PreProp, Property, param, paramls, params
 
 
+@dataclass(eq=False, kw_only=True, init=False)
 class WithParams:
     _params: list[tuple[str, PreProp]]  # class attribute from __init_subclass__
 
@@ -33,11 +37,21 @@ class WithParams:
                 # p.typed = f.typed
                 setattr(self, name, p)
                 return p
+        for f in fields(self):
+            if f.name == name:
+                if m := f.metadata.get("parm"):
+                    p = Property()
+                    p.typed = m.get("typed")
+                    p._name = m.get("name")
+                    # p = Property(None, f.name)
+                    # p.typed = f.typed
+                    setattr(self, name, p)
+                    return p
         try:
             return super().__getattr__(name)  # type: ignore
         except AttributeError:
             raise AttributeError(
-                f"{self.__class__.__name__} has no attribute {name}"
+                f"{self.__class__.__name__!r} has no attribute {name!r}"
             ) from None
 
     def set_params(self, **kwargs):
@@ -59,6 +73,7 @@ class WithParams:
         return self
 
 
+@dataclass(eq=False, kw_only=True, init=False)
 class Layer(WithParams, WithXML, Base):
     """
     A Synfig layer
@@ -68,6 +83,7 @@ class Layer(WithParams, WithXML, Base):
     z_depth: Property = param("z_depth", Real)
     amount: Property = param("amount", Real)
     blend_method: Property = param("blend_method", Integer)
+    other: Property = field(init=False, metadata=parm("other", Vector))
 
     def __init__(
         self,
@@ -114,6 +130,7 @@ class Layer(WithParams, WithXML, Base):
         return element
 
 
+@dataclass(eq=False, kw_only=True, init=False)
 class SolidColorLayer(Layer):
 
     color: Property = param("color", Color)
@@ -122,6 +139,7 @@ class SolidColorLayer(Layer):
         super().__init__("solid_color", version="0.1", desc=desc, **kwargs)
 
 
+@dataclass(eq=False, kw_only=True, init=False)
 class CircleLayer(Layer):
 
     color: Property = param("color", Color)
@@ -135,6 +153,7 @@ class CircleLayer(Layer):
         super().__init__("circle", version="0.1", desc=desc, **kwargs)
 
 
+@dataclass(eq=False, kw_only=True, init=False)
 class MotionBlurLayer(Layer):
     """
     A Synfig Motion Blur layer with all standard parameters.
@@ -150,6 +169,7 @@ class MotionBlurLayer(Layer):
         super().__init__("motion_blur", version="0.1", desc=desc, **kwargs)
 
 
+@dataclass(eq=False, kw_only=True, init=False)
 class Grouping(Base):
     def add_solid_color_layer(self, *args, before: Base | None = None, **kwargs):
         e = SolidColorLayer(*args, **kwargs)
@@ -172,6 +192,7 @@ class Grouping(Base):
         return layer
 
 
+@dataclass(eq=False, kw_only=True, init=False)
 class GroupLayer(Layer, Grouping):
     """
     A Synfig Group layer (pastecanvas) that can either contain inline child layers
@@ -179,7 +200,7 @@ class GroupLayer(Layer, Grouping):
     """
 
     origin: Property = param("origin", Vector)
-    # extra: Property = field(init=False, metadata=parm("extra", Vector))
+    extra: Property = field(init=False, metadata=parm("extra", Vector))
 
     def __init__(self, desc="", use: Optional[str] = None, **kwargs):
         super().__init__("group", version="0.1", desc=desc, **kwargs)

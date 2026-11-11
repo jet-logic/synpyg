@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field, fields
 from typing import Any
-
+from functools import partial
 from .value import Value
 from .valuenode import ValueNode, WithXML
 
@@ -13,10 +13,22 @@ def parm(name: str, typed: type[Value]) -> dict[str, Any]:
     return {"parm": {"name": name, "typed": typed}}
 
 
+def _parm():
+    return field(init=False, metadata={"attr": True})
+
+
+# def partial
+# attr = partial(dataclass, init=False)
+
+
+def attr2():
+    return field(init=False, metadata={"attr": True})
+
+
 @dataclass
 class Waypoint(WithXML):
     value: Value = field(init=False)
-    time: float = field(init=False, metadata={"attr": True})
+    time: float = attr2()
     before: str = field(init=False, metadata={"attr": True})
     after: str = field(init=False, metadata={"attr": True})
     tension: float = field(init=False, metadata={"attr": True})
