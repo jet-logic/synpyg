@@ -1,9 +1,11 @@
-from typing import Any, Callable, Generator, Generic, TypeVar
-
+from dataclasses import field
+from typing import Any, Callable, TYPE_CHECKING
 from .valuenode import WithXML
-from .animated import Animated, _parm
 from .value import Value
 from .tree.linked3 import Node
+
+if TYPE_CHECKING:
+    from .animated import Animated
 
 
 class Base(Node):
@@ -14,12 +16,6 @@ class Property(WithXML):
     """
     A Synfig param
     """
-
-    # def __init__(self, value: Value | Animated | None, name=""):
-    #     # if value:
-    #     #     self.value = value
-    #     self.value = value
-    #     self._name = name
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.__dict__.get('value')!r})"
@@ -37,59 +33,19 @@ class Property(WithXML):
         return v
 
     typed: type[Value]
-    _name: str
-    # _argv: tuple | object
-    value: Value | Animated | None
+    name: str
+    value: "Value | Animated | None"
 
     def to_xml_element(self):
-        element = self._etree.Element("param", {"name": self._name})
+        element = self._etree.Element("param", {"name": self.name})
         if v := self.value:
             element.append(v.to_xml_element())
         return element
 
 
-# class PreProp(Property):
-#     # subclassed Property so VS Code will not complain
-#     def __init__(self, name: str, typed: type[Value]):
-#         self.name = name
-#         self.typed = typed
-
-#     def __repr__(self) -> str:
-#         return f"{self.__class__.__name__}({self.name!r})"
-
-
-# def paramls(inst: object) -> Generator[list[tuple[str, PreProp]], Any, None]:
-#     for c in inst.__class__.__mro__:
-#         try:
-#             f: list[tuple[str, PreProp]] = c._params  # type: ignore
-#         except AttributeError:
-#             pass
-#         else:
-#             assert isinstance(f, list)
-#             yield f
-
-
-# def params(inst: object) -> Generator[tuple[str, PreProp], Any, None]:
-#     for v in paramls(inst):
-#         yield from v
-
-
-# _T = TypeVar("_T")
-
-
-# class Pro(Generic[_T]):
-#     pass
-
-
 def param(name, typed: type[Value]):
-    # return PreProp(name, typed)
-    return _parm(name, typed)
+    return field(init=False, metadata={"parm": {"name": name, "typed": typed}})
 
 
-# def param2(cls, name, typed: type[Value]):
-#     return PreProp(name, typed)
-#     # return 5# PreProp(name, typed)
-
-
-class TestXML(WithXML):
-    pass
+def attr(name="", strf: Callable[[object], str] = str):
+    return field(init=False, metadata={"attr": {"name": name, "strf": strf}})

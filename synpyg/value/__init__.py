@@ -35,7 +35,7 @@ class Value(WithXML):
 
         p = Property()
         p.value = self
-        p._name = name
+        p.name = name
         return p
 
     def __repr__(self) -> str:

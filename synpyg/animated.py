@@ -1,36 +1,19 @@
-from dataclasses import dataclass, field, fields
-from typing import Any
-from functools import partial
+from dataclasses import dataclass, fields
+from .base import attr
 from .value import Value
 from .valuenode import ValueNode, WithXML
 
 
-def attr(name="") -> dict[str, Any]:
-    return {"attr": {"name": name}}
-
-
-# def parm(name: str, typed: type[Value]) -> dict[str, Any]:
-#     return {"parm": {"name": name, "typed": typed}}
-
-
-def _parm(name: str, typed: type[Value]):
-    return field(init=False, metadata={"parm": {"name": name, "typed": typed}})
-
-
-def attr2():
-    return field(init=False, metadata={"attr": True})
-
-
-@dataclass
+@dataclass(eq=False, kw_only=True, init=False)
 class Waypoint(WithXML):
-    value: Value = field(init=False)
-    time: float = attr2()
-    before: str = field(init=False, metadata={"attr": True})
-    after: str = field(init=False, metadata={"attr": True})
-    tension: float = field(init=False, metadata={"attr": True})
-    temporal_tension: float = field(init=False, metadata=attr("temporal-tension"))
-    continuity: float = field(init=False, metadata={"attr": True})
-    bias: float = field(init=False, metadata={"attr": True})
+    value: Value
+    time: float = attr(strf=(lambda v: f"{v}s"))
+    before: str = attr()
+    after: str = attr()
+    tension: float = attr()
+    temporal_tension: float = attr("temporal-tension")
+    continuity: float = attr()
+    bias: float = attr()
 
     def set_params(self, **kwargs):
         def _set(k, v):
@@ -50,13 +33,10 @@ class Waypoint(WithXML):
                 k = a = f.name
                 v = self.__dict__.get(k)
                 if v is not None:
-                    if isinstance(m, dict):
-                        if x := m.get("name"):
-                            a = x
-                    if k == "time":
-                        element.set(a, f"{v}s")
-                    else:
-                        element.set(a, str(v))
+                    if x := m.get("name"):
+                        a = x
+                    s = m.get("strf")
+                    element.set(a, s(v))
         try:
             v = self.value
         except AttributeError:
