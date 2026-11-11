@@ -1,31 +1,85 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Any
 
-from .valuenode import ValueNode
+from .value import Value
+from .valuenode import ValueNode, WithXML
+
+
+def attr(name="") -> dict[str, Any]:
+    return {"attr": {"name": name}}
 
 
 @dataclass
-class Waypoint:
-    time: str
-    value: Any
+class Waypoint(WithXML):
+    value: Value = field(init=False)
+    time: float = field(init=False, metadata={"attr": True})
+    before: str = field(init=False, metadata={"attr": True})
+    after: str = field(init=False, metadata={"attr": True})
+    tension: float = field(init=False, metadata={"attr": True})
+    temporal_tension: float = field(init=False, metadata=attr("temporal-tension"))
+    continuity: float = field(init=False, metadata={"attr": True})
+    bias: float = field(init=False, metadata={"attr": True})
 
-    before: str | None = None
-    after: str | None = None
+    def set_params(self, **kwargs):
+        def _set(k, v):
+            for f in fields(self):
+                if k == f.name and f.metadata.get("attr"):
+                    return setattr(self, k, v)
+            raise NameError(f"Unknow params {k}?")
 
-    tension: float | None = None
-    temporal_tension: float | None = None
-    continuity: float | None = None
-    bias: float | None = None
+        for k, v in kwargs.items():
+            _set(k, v)
+        return self
+
+    def to_xml_element(self):
+        element = self._etree.Element("waypoint")
+        for f in fields(self):
+            if m := f.metadata.get("attr"):
+                k = a = f.name
+                v = self.__dict__.get(k)
+                if v is not None:
+                    if isinstance(m, dict):
+                        if x := m.get("name"):
+                            a = x
+                    if k == "time":
+                        element.set(a, f"{v}s")
+                    else:
+                        element.set(a, str(v))
+        try:
+            v = self.value
+        except AttributeError:
+            pass
+        else:
+            element.append(v.to_xml_element())
+        return element
 
 
-@dataclass
+# can waypoint have a value node or just const value
+
+
 class Animated(ValueNode):
-    value_type: str
-    waypoints: list[Waypoint] = field(default_factory=list)
-
+    _type: type[Value]
     interpolation: str | None = None
     node_id: str | None = None
 
+    def __init__(self) -> None:
+        super().__init__()
+        self.waypoints: list[Waypoint] = []
+
     def add_waypoint(self, time, value, **kwargs):
-        self.waypoints.append(Waypoint(time, value, **kwargs))
+        w = Waypoint()
+        w.time = time
+        w.value = value
+        w.set_params(**kwargs)
+        self.waypoints.append(w)
         return self
+
+    def to_xml_element(self):
+        element = self._etree.Element("animated", {"type": self._type.tag})
+        # TODO: interpolation
+        for child in self.waypoints:
+            element.append(child.to_xml_element())
+        return element
+
+
+# src reference : CanvasParser::parse_animated

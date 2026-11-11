@@ -1,7 +1,12 @@
 from typing import TYPE_CHECKING, Any, Optional, Self, Union
 
+from ..valuenode import WithXML
 
-class Value:
+if TYPE_CHECKING:
+    from ..animated import Animated
+
+
+class Value(WithXML):
     # Synfig value
     tag = ""
     id: Optional[str]
@@ -16,11 +21,13 @@ class Value:
         self.id = None
         self.guid = None
 
-    def check_value(self, value: Any) -> Self:
-        raise NotImplementedError(f"{self.__class__.__name__}")
+    @classmethod
+    def check_value(cls, value: Any) -> Self:
+        raise NotImplementedError(f"{cls.__name__}")
 
-    def to_xml_element(self) -> "ET.Element":
-        raise NotImplementedError(f"{self.__class__.__name__}")
+    @classmethod
+    def new_animated(cls) -> "Animated":
+        raise NotImplementedError(f"{cls.__name__}")
 
     def __repr__(self) -> str:
         extras = ""
@@ -31,7 +38,11 @@ class Value:
         return f"{self.__class__.__name__}({self.data!r}{extras})"
 
 
-class Real(Value):
+class Const(Value):
+    pass
+
+
+class Real(Const):
     # Synfig real value
     data: float
     tag = "real"
@@ -41,15 +52,16 @@ class Real(Value):
         self.data = data
 
     def to_xml_element(self):
-        return ET.Element("real", {"value": str(self.data)})
+        return self._etree.Element("real", {"value": str(self.data)})
 
-    def check_value(self, value: Any) -> Self:
+    @classmethod
+    def check_value(cls, value: Any) -> Self:
         if isinstance(value, (bool, str, int, float)):
-            return self.__class__(float(value))
+            return cls(float(value))
         raise ValueError(f"Unexpected boolean {value}")
 
 
-class Integer(Value):
+class Integer(Const):
     data: int
     tag = "integer"
 
@@ -58,15 +70,16 @@ class Integer(Value):
         self.data = data
 
     def to_xml_element(self):
-        return ET.Element("integer", {"value": str(self.data)})
+        return self._etree.Element("integer", {"value": str(self.data)})
 
-    def check_value(self, value: Any) -> Self:
+    @classmethod
+    def check_value(cls, value: Any) -> Self:
         if isinstance(value, (bool, str, int, float)):
-            return self.__class__(int(value))
+            return cls(int(value))
         raise ValueError(f"Unexpected boolean {value}")
 
 
-class Boolean(Value):
+class Boolean(Const):
     data: bool
     tag = "bool"
 
@@ -74,32 +87,33 @@ class Boolean(Value):
         super().__init__(**kwargs)
         self.data = data
 
-    def check_value(self, value):
+    @classmethod
+    def check_value(cls, value):
         if isinstance(value, bool):
             return Boolean(value)
         raise ValueError(f"Unexpected boolean {value}")
 
     def to_xml_element(self):
-        return ET.Element("bool", {"value": str(self.data).lower()})
+        return self._etree.Element("bool", {"value": str(self.data).lower()})
 
 
-class String(Value):
+class String(Const):
     data: str
     tag = "string"
 
     def to_xml_element(self):
-        return ET.Element("string", {"value": self.data})
+        return self._etree.Element("string", {"value": self.data})
 
 
-class Angle(Value):
+class Angle(Const):
     data: float
     tag = "angle"
 
     def to_xml_element(self):
-        return ET.Element("angle", {"value": str(self.data)})
+        return self._etree.Element("angle", {"value": str(self.data)})
 
 
-class Time(Value):
+class Time(Const):
     data: complex
     tag = "time"
 
@@ -107,26 +121,26 @@ class Time(Value):
         super().__init__(**kwargs)
         self.data = data
 
-    def check_value(self, value):
+    @classmethod
+    def check_value(cls, value):
         return Time(timep(value))
 
     def to_xml_element(self):
-        return ET.Element("time", {"value": timef(self.data)})
+        return self._etree.Element("time", {"value": timef(self.data)})
 
 
-class Vec(Value):
+class Vec(Const):
     data: tuple[float, ...]
 
-    def __init__(self, data: tuple[float, ...], **kwargs) -> None:
+    def __init__(self, data: tuple[float, ...] | list[float], **kwargs) -> None:
         super().__init__(**kwargs)
-        self.data = data
+        self.data = tuple(data)
 
-    def check_value(self, value: Any):
-        if isinstance(value, list):
-            return self.__class__(tuple(value))
-        elif isinstance(value, tuple):
-            return self.__class__(value)
-        raise ValueError(f"Unexpected {self.__class__.__name__} {value}")
+    @classmethod
+    def check_value(cls, value: Any):
+        if isinstance(value, (list, tuple)):
+            return cls(value)
+        raise ValueError(f"Unexpected {cls.__name__} {value}")
 
 
 class Color(Vec):
@@ -137,9 +151,9 @@ class Color(Vec):
         super().__init__(data, **kwargs)
 
     def to_xml_element(self):
-        element = ET.Element("color")
+        element = self._etree.Element("color")
         for channel, n in zip(("r", "g", "b", "a"), self.data):
-            ET.SubElement(element, channel).text = str(n)
+            self._etree.SubElement(element, channel).text = str(n)
         return element
 
 
@@ -151,10 +165,18 @@ class Vector(Vec):
         super().__init__(data, **kwargs)
 
     def to_xml_element(self):
-        element = ET.Element("vector")
+        element = self._etree.Element("vector")
         for s, n in zip(("x", "y"), self.data):
-            ET.SubElement(element, s).text = str(n)
+            self._etree.SubElement(element, s).text = str(n)
         return element
+
+    @classmethod
+    def new_animated(cls) -> "Animated":
+        from ..animated import Animated
+
+        a = Animated()
+        a._type = cls
+        return a
 
 
 def timep(s: Union[str, float, int, complex]) -> complex:
@@ -218,6 +240,3 @@ def timef(v: complex) -> str:
         parts.append(_fmt_frames(frames) + "f")
 
     return " ".join(parts)
-
-
-from xml.etree import ElementTree as ET

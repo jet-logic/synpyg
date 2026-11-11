@@ -1,18 +1,20 @@
 from typing import TYPE_CHECKING, Optional
+
+from .valuenode import WithXML
 from .value import Color, Integer, Real, Time, Vector, Boolean
-from .base import Base, Field, Property, param, params
+from .base import Base, Field, Property, param, paramls, params
 
 
 class WithParams:
-    _params: list[tuple[str, Field, object]]
+    _params: list[tuple[str, Field]]  # class attribute from __init_subclass__
 
     def __init_subclass__(cls, /, **kwargs):
         super().__init_subclass__(**kwargs)
-        _params: list[tuple[str, Field, object]] = []
+        _params: list[tuple[str, Field]] = []
         for k, v in tuple(cls.__dict__.items()):
             if isinstance(v, Field):
                 delattr(cls, k)
-                _params.append((k, v, cls.__annotations__.get(k)))
+                _params.append((k, v))
         # print("__init_subclass__", cls, _params)
         cls._params = _params
 
@@ -23,26 +25,14 @@ class WithParams:
                 yield k, v
 
     def __getattr__(self, name):
-        for k, g, t in params(self):
+        for k, f in params(self):
             if k == name:
-                p = g.producer or t
-                a = g.argv
-                try:
-                    if a is None:
-                        v = p()
-                    elif isinstance(a, tuple):
-                        v = p(*a)
-                    else:
-                        v = p(a)
-                except Exception:
-                    from warnings import warn
-
-                    warn(f"__getattr__ {self.__class__.__name__} {k} {(p, a)} {t}")
-                    raise
-                # print("FIELD", name, v, v.__class__.__name__)
-                q = Property(v)
-                setattr(self, name, q)
-                return q
+                p = Property(None, f.name)
+                # p._name = f.name
+                p._type = f.type
+                p._argv = f.argv
+                setattr(self, name, p)
+                return p
         try:
             return super().__getattr__(name)  # type: ignore
         except AttributeError:
@@ -50,8 +40,25 @@ class WithParams:
                 f"{self.__class__.__name__} has no attribute {name}"
             ) from None
 
+    def set_params(self, **kwargs):
+        def _set(k, v):
+            for ls in paramls(self):
+                for n, f in ls:
+                    if k == n:
+                        p = Property(None, f.name)
+                        p._type = f.type
+                        p.set_value(v)
+                        setattr(self, k, p)
+                        return
+            raise NameError(f"Unknow params {k}?")
 
-class Layer(WithParams, Base):
+        for k, v in kwargs.items():
+            _set(k, v)
+
+        return self
+
+
+class Layer(WithParams, WithXML, Base):
     """
     A Synfig layer
     """
@@ -79,7 +86,7 @@ class Layer(WithParams, Base):
         self.group: Optional[str] = group
 
     def to_xml_element(self):
-        element = ET.Element(
+        element = self._etree.Element(
             "layer",
             {
                 "type": self.type,
@@ -101,8 +108,7 @@ class Layer(WithParams, Base):
 
         # Initialize and serialize all declared parameters
         for name, prop in self._enum_params():
-            param = ET.SubElement(element, "param", {"name": name})
-            param.append(prop.value.to_xml_element())
+            element.append(prop.to_xml_element())
 
         return element
 
@@ -133,11 +139,11 @@ class MotionBlurLayer(Layer):
     A Synfig Motion Blur layer with all standard parameters.
     """
 
-    aperture: Property = param("aperture", Time, "0f")
+    aperture: Property = param("aperture", Time, 1)
     subsamples_factor: Property = param("subsamples_factor", Real, 1.0)
-    subsampling_type: Property = param("subsampling_type", Integer, 0)
-    subsample_start_amount: Property = param("subsample_start_amount", Real, 0.0)
-    subsample_end_amount: Property = param("subsample_end_amount", Real, 1.0)
+    subsampling_type: Property = param("subsampling_type", Integer, 2)
+    subsample_start: Property = param("subsample_start", Real, 0.0)
+    subsample_end: Property = param("subsample_end", Real, 1.0)
 
     def __init__(self, desc="", **kwargs):
         super().__init__("motion_blur", version="0.1", desc=desc, **kwargs)
@@ -152,7 +158,7 @@ class GroupLayer(Layer):
     origin: Property = param("origin", Vector, (0.0, 0.0))
 
     def __init__(self, desc="", use: Optional[str] = None, **kwargs):
-        super().__init__("paste_canvas", version="0.1", desc=desc, **kwargs)
+        super().__init__("group", version="0.1", desc=desc, **kwargs)
         self.use = use
 
     def add_solid_color_layer(self, *args, before: Base | None = None, **kwargs):
@@ -178,14 +184,14 @@ class GroupLayer(Layer):
     def to_xml_element(self):
         element = super().to_xml_element()
 
-        canvas_param = ET.SubElement(element, "param", {"name": "canvas"})
+        canvas_param = self._etree.SubElement(element, "param", {"name": "canvas"})
 
         if self.use:
             # If using a reference, set the 'use' attribute on the canvas element
-            ET.SubElement(canvas_param, "canvas", {"use": self.use})
+            self._etree.SubElement(canvas_param, "canvas", {"use": self.use})
         else:
             # Otherwise, serialize inline child layers as before
-            sub_canvas = ET.SubElement(canvas_param, "canvas")
+            sub_canvas = self._etree.SubElement(canvas_param, "canvas")
             for child in self:
                 if not hasattr(child, "to_xml_element"):
                     raise TypeError(f"Cannot serialize {type(child).__name__}")
@@ -193,6 +199,3 @@ class GroupLayer(Layer):
                 sub_canvas.append(child.to_xml_element())
 
         return element
-
-
-from xml.etree import ElementTree as ET

@@ -1,10 +1,12 @@
 from typing import Any, Optional, TYPE_CHECKING
 from pathlib import Path
+
+from .valuenode import WithXML
 from .layer import CircleLayer, GroupLayer, Layer, MotionBlurLayer, SolidColorLayer
 from .base import Base
 
 
-class Canvas(Base):
+class Canvas(WithXML, Base):
     """
     A Synfig canvas
     """
@@ -47,7 +49,7 @@ class Canvas(Base):
         if self.view_box is not None:
             attributes["view-box"] = str(self.view_box)
 
-        root = ET.Element("canvas", attributes)
+        root = self._etree.Element("canvas", attributes)
 
         for child in self:
             if not hasattr(child, "to_xml_element"):
@@ -59,7 +61,6 @@ class Canvas(Base):
         return root
 
     def save_xml(self, filename):
-        import xml.etree.ElementTree as ET
 
         path = Path(filename)
 
@@ -68,8 +69,8 @@ class Canvas(Base):
 
         root = self.to_xml_element()
 
-        tree = ET.ElementTree(root)
-        ET.indent(tree, space="    ")
+        tree = self._etree.ElementTree(root)
+        self._etree.indent(tree, space="    ")
 
         tree.write(
             path,
@@ -98,6 +99,3 @@ class Canvas(Base):
         layer = MotionBlurLayer(*args, **kwargs)
         self.insert_before(before, layer)
         return layer
-
-
-from xml.etree import ElementTree as ET
