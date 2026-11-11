@@ -48,7 +48,9 @@ class Base:
         end = self._end
         prev = self._prev
         next = end._next
-        prev and prev._link_next(next)
+        if prev:
+            assert next
+            prev._link_next(next)
         self._prev = end._next = self._parent = None
         return self
 
@@ -102,9 +104,14 @@ class Node(Base):
             cur = next
 
     def insert_before(self, which: Base | bool | None, *nodes: Base):
-        child: Base = (
-            self._end if not which else (self.first_child() if which is True else which)
-        )
+        if which:
+            if which is True:
+                child = self.first_child()
+                assert child
+            else:
+                child = which
+        else:
+            child = self._end
         if child._parent is not self:
             raise RuntimeError(f"child not found")
         prev = child._prev or self

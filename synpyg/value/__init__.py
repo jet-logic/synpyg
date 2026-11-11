@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Any, Optional, Self, Union
 
+
 from ..valuenode import WithXML
 
 if TYPE_CHECKING:
@@ -28,6 +29,14 @@ class Value(WithXML):
     @classmethod
     def new_animated(cls) -> "Animated":
         raise NotImplementedError(f"{cls.__name__}")
+
+    def as_prop(self, name=""):
+        from ..base import Property
+
+        p = Property()
+        p.value = self
+        p._name = name
+        return p
 
     def __repr__(self) -> str:
         extras = ""

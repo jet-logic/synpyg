@@ -3,6 +3,7 @@ from typing import Any
 import unittest
 
 from synpyg.animated import Waypoint
+from synpyg.layer import GroupLayer
 
 
 def attr(*args, **kwargs):
@@ -42,6 +43,11 @@ class Test(unittest.TestCase):
         )
 
         print(w._etree.tostring(w.to_xml_element()))
+
+    # def test_GroupLayer(self):
+    #     g = GroupLayer()
+    #     g.extra.set_value([5, 4])
+    #     print(g._etree.tostring(g.to_xml_element()))
 
 
 if __name__ == "__main__":

@@ -37,7 +37,9 @@ class Test(unittest.TestCase):
         self.assertSequenceEqual(
             [k for k, v in s._enum_params()], ["amount", "blend_method"]
         )
-        s.flag = Property(Integer(67))  # type: ignore
+        # s.flag = Property(Integer(67))  # type: ignore
+        s.flag = Integer(67).as_prop()  # type: ignore
+
         self.assertSequenceEqual(
             [k for k, v in s._enum_params()], ["amount", "blend_method", "flag"]
         )
@@ -52,9 +54,10 @@ class Test(unittest.TestCase):
             end_time="5s",
             view_box="-10 5.625 10 -5.625",
         )
+        print(root.__class__.__mro__)
         if sol := root.add_solid_color_layer("Background"):
             self.assertEqual(sol.desc, "Background")
-            print("sol.color.value", sol.color.value)
+            # print("sol.color.value", sol.color.value)
             # sol.color.set_value((1, 0, 1, 1))
             sol.set_params(color=(1, 0, 1, 1))
             print("sol.color.value", sol.color.value)

@@ -9,6 +9,10 @@ def attr(name="") -> dict[str, Any]:
     return {"attr": {"name": name}}
 
 
+def parm(name: str, typed: type[Value]) -> dict[str, Any]:
+    return {"parm": {"name": name, "typed": typed}}
+
+
 @dataclass
 class Waypoint(WithXML):
     value: Value = field(init=False)

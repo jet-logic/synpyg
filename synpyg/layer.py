@@ -1,18 +1,17 @@
-from typing import TYPE_CHECKING, Optional
-
+from typing import Optional
 from .valuenode import WithXML
 from .value import Color, Integer, Real, Time, Vector, Boolean
-from .base import Base, Field, Property, param, paramls, params
+from .base import Base, PreProp, Property, param, paramls, params
 
 
 class WithParams:
-    _params: list[tuple[str, Field]]  # class attribute from __init_subclass__
+    _params: list[tuple[str, PreProp]]  # class attribute from __init_subclass__
 
     def __init_subclass__(cls, /, **kwargs):
         super().__init_subclass__(**kwargs)
-        _params: list[tuple[str, Field]] = []
+        _params: list[tuple[str, PreProp]] = []
         for k, v in tuple(cls.__dict__.items()):
-            if isinstance(v, Field):
+            if isinstance(v, PreProp):
                 delattr(cls, k)
                 _params.append((k, v))
         # print("__init_subclass__", cls, _params)
@@ -21,16 +20,17 @@ class WithParams:
     def _enum_params(self):
         for k, v in self.__dict__.items():
             if isinstance(v, Property):
-                assert not isinstance(v, Field)
+                assert not isinstance(v, PreProp)
                 yield k, v
 
     def __getattr__(self, name):
         for k, f in params(self):
             if k == name:
-                p = Property(None, f.name)
-                # p._name = f.name
-                p._type = f.type
-                p._argv = f.argv
+                p = Property()
+                p.typed = f.typed
+                p._name = f.name
+                # p = Property(None, f.name)
+                # p.typed = f.typed
                 setattr(self, name, p)
                 return p
         try:
@@ -45,8 +45,9 @@ class WithParams:
             for ls in paramls(self):
                 for n, f in ls:
                     if k == n:
-                        p = Property(None, f.name)
-                        p._type = f.type
+                        p = Property()
+                        p._name = f.name
+                        p.typed = f.typed
                         p.set_value(v)
                         setattr(self, k, p)
                         return
@@ -64,9 +65,9 @@ class Layer(WithParams, WithXML, Base):
     """
 
     TAG = "layer"
-    z_depth: Property = param("z_depth", Real, 0.0)
-    amount: Property = param("amount", Real, 1.0)
-    blend_method: Property = param("blend_method", Integer, 1)
+    z_depth: Property = param("z_depth", Real)
+    amount: Property = param("amount", Real)
+    blend_method: Property = param("blend_method", Integer)
 
     def __init__(
         self,
@@ -115,7 +116,7 @@ class Layer(WithParams, WithXML, Base):
 
 class SolidColorLayer(Layer):
 
-    color: Property = param("color", Color, [0.3, 0.4, 0.5, 0.6])
+    color: Property = param("color", Color)
 
     def __init__(self, desc="", **kwargs):
         super().__init__("solid_color", version="0.1", desc=desc, **kwargs)
@@ -123,12 +124,12 @@ class SolidColorLayer(Layer):
 
 class CircleLayer(Layer):
 
-    color: Property = param("color", Color, [0.3, 0.4, 0.5, 1.0])
-    radius: Property = param("radius", Real, 1.0)
-    feather: Property = param("feather", Real, 0.0)
-    origin: Property = param("origin", Vector, (0.0, 0.0))
-    invert: Property = param("invert", Boolean, False)
-    falloff: Property = param("falloff", Integer, 1)
+    color: Property = param("color", Color)
+    radius: Property = param("radius", Real)
+    feather: Property = param("feather", Real)
+    origin: Property = param("origin", Vector)
+    invert: Property = param("invert", Boolean)
+    falloff: Property = param("falloff", Integer)
 
     def __init__(self, desc="", **kwargs):
         super().__init__("circle", version="0.1", desc=desc, **kwargs)
@@ -139,28 +140,17 @@ class MotionBlurLayer(Layer):
     A Synfig Motion Blur layer with all standard parameters.
     """
 
-    aperture: Property = param("aperture", Time, 1)
-    subsamples_factor: Property = param("subsamples_factor", Real, 1.0)
-    subsampling_type: Property = param("subsampling_type", Integer, 2)
-    subsample_start: Property = param("subsample_start", Real, 0.0)
-    subsample_end: Property = param("subsample_end", Real, 1.0)
+    aperture: Property = param("aperture", Time)
+    subsamples_factor: Property = param("subsamples_factor", Real)
+    subsampling_type: Property = param("subsampling_type", Integer)
+    subsample_start: Property = param("subsample_start", Real)
+    subsample_end: Property = param("subsample_end", Real)
 
     def __init__(self, desc="", **kwargs):
         super().__init__("motion_blur", version="0.1", desc=desc, **kwargs)
 
 
-class GroupLayer(Layer):
-    """
-    A Synfig Group layer (pastecanvas) that can either contain inline child layers
-    or reference an external/exported canvas via the 'use' attribute.
-    """
-
-    origin: Property = param("origin", Vector, (0.0, 0.0))
-
-    def __init__(self, desc="", use: Optional[str] = None, **kwargs):
-        super().__init__("group", version="0.1", desc=desc, **kwargs)
-        self.use = use
-
+class Grouping(Base):
     def add_solid_color_layer(self, *args, before: Base | None = None, **kwargs):
         e = SolidColorLayer(*args, **kwargs)
         self.insert_before(before, e)
@@ -180,6 +170,20 @@ class GroupLayer(Layer):
         layer = MotionBlurLayer(*args, **kwargs)
         self.insert_before(before, layer)
         return layer
+
+
+class GroupLayer(Layer, Grouping):
+    """
+    A Synfig Group layer (pastecanvas) that can either contain inline child layers
+    or reference an external/exported canvas via the 'use' attribute.
+    """
+
+    origin: Property = param("origin", Vector)
+    # extra: Property = field(init=False, metadata=parm("extra", Vector))
+
+    def __init__(self, desc="", use: Optional[str] = None, **kwargs):
+        super().__init__("group", version="0.1", desc=desc, **kwargs)
+        self.use = use
 
     def to_xml_element(self):
         element = super().to_xml_element()
