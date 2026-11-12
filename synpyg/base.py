@@ -7,6 +7,8 @@ from .tree.linked3 import Node
 if TYPE_CHECKING:
     from .animated import Animated
 
+# node_dataclass = partial(dataclass, eq=False, kw_only=True, init=False)
+
 
 class Base(Node):
     pass

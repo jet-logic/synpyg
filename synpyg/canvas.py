@@ -79,23 +79,3 @@ class Canvas(WithXML, Grouping):
         )
 
         return path
-
-    # def add_solid_color_layer(self, *args, before: Base | None = None, **kwargs):
-    #     e = SolidColorLayer(*args, **kwargs)
-    #     self.insert_before(before, e)
-    #     return e
-
-    # def add_circle_layer(self, *args, before: Base | None = None, **kwargs):
-    #     layer = CircleLayer(*args, **kwargs)
-    #     self.insert_before(before, layer)
-    #     return layer
-
-    # def add_group_layer(self, *args, before: Base | None = None, **kwargs):
-    #     layer = GroupLayer(*args, **kwargs)
-    #     self.insert_before(before, layer)
-    #     return layer
-
-    # def add_motion_blur_layer(self, *args, before: Base | None = None, **kwargs):
-    #     layer = MotionBlurLayer(*args, **kwargs)
-    #     self.insert_before(before, layer)
-    #     return layer

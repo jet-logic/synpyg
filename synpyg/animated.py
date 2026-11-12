@@ -20,7 +20,7 @@ class Waypoint(WithXML):
             for f in fields(self):
                 if k == f.name and f.metadata.get("attr"):
                     return setattr(self, k, v)
-            raise NameError(f"Unknow params {k}?")
+            raise NameError(f"Unknown params {k}?")
 
         for k, v in kwargs.items():
             _set(k, v)
