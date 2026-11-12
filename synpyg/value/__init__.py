@@ -27,6 +27,13 @@ class Value(WithXML):
         raise NotImplementedError(f"{cls.__name__}")
 
     @classmethod
+    def coerce(cls, value: Any) -> Self:
+        """Return ``value`` if it is already a ``cls``, otherwise validate and wrap it."""
+        if isinstance(value, cls):
+            return value
+        return cls.check_value(value)
+
+    @classmethod
     def new_animated(cls) -> "Animated":
         raise NotImplementedError(f"{cls.__name__}")
 
@@ -188,7 +195,7 @@ class Vector(Vec):
         return a
 
 
-def timep(s: Union[str, float, int, complex]) -> complex:
+def timep(s: Union[str, float, int, complex, object]) -> complex:
     if isinstance(s, str):
         s = s.strip()
         if ":" in s:

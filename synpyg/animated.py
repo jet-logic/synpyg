@@ -1,11 +1,11 @@
 from .base import Attr, WithAttrs
-from .value import Value
+from .value import Value, timef, timep
 from .valuenode import ValueNode, WithXML
 
 
 class Waypoint(WithAttrs, WithXML):
     value: Value
-    time = Attr(strf=(lambda v: f"{v}s"))
+    time = Attr(strf=lambda v: timef(timep(v)))
     before = Attr()
     after = Attr()
     tension = Attr()
@@ -14,18 +14,19 @@ class Waypoint(WithAttrs, WithXML):
     bias = Attr()
 
     def to_xml_element(self):
+        try:
+            value = self.value
+        except AttributeError:
+            at = self.__dict__.get("time")
+            raise ValueError(
+                "Waypoint has no value" + (f" (time={at!r})" if at is not None else "")
+            ) from None
         element = self._etree.Element("waypoint")
         for key, a in self._attrs.items():
             v = self.__dict__.get(key)
             if v is not None:
-                assert a.name
                 element.set(a.name, a.strf(v))
-        try:
-            value = self.value
-        except AttributeError:
-            pass
-        else:
-            element.append(value.to_xml_element())
+        element.append(value.to_xml_element())
         return element
 
 
@@ -42,17 +43,34 @@ class Animated(ValueNode):
         self.waypoints: list[Waypoint] = []
 
     def add_waypoint(self, time, value, **kwargs):
+        timef(timep(time))  # fail now on a bad time, not when saving
         w = Waypoint()
         w.time = time
-        w.value = value
+        w.value = self._type.coerce(value)
         w.set_params(**kwargs)
         self.waypoints.append(w)
         return self
 
+    def _ordered_waypoints(self) -> list[Waypoint]:
+        """
+        Waypoints sorted by time (stable, so equal times keep insertion order).
+
+        Frame offsets can't be compared with seconds without the canvas fps, so if
+        any waypoint uses frames (or has no time) insertion order is kept as is.
+        """
+        times = [w.__dict__.get("time") for w in self.waypoints]
+        if any(t is None for t in times):
+            return list(self.waypoints)
+        parsed = [timep(t) for t in times]
+        if any(t.imag != 0 for t in parsed):
+            return list(self.waypoints)
+        order = sorted(range(len(parsed)), key=lambda i: parsed[i].real)
+        return [self.waypoints[i] for i in order]
+
     def to_xml_element(self):
         element = self._etree.Element("animated", {"type": self._type.tag})
         # TODO: interpolation
-        for child in self.waypoints:
+        for child in self._ordered_waypoints():
             element.append(child.to_xml_element())
         return element
 

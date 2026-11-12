@@ -124,6 +124,7 @@ class AttrDescriptorTest(unittest.TestCase):
         w = Waypoint()
         w.time = 2
         w.temporal_tension = 0.5
+        w.value = Real(1.0)
         el = w.to_xml_element()
         self.assertEqual(el.attrib, {"time": "2s", "temporal-tension": "0.5"})
 

@@ -51,9 +51,10 @@ class Test(unittest.TestCase):
         w.time = 4
         w.after = "qerreq"
         w.temporal_tension = 0.87
+        w.value = Real(1.0)
         print({k: a.name for k, a in w._attrs.items()})
         self.assertSequenceEqual(
-            sorted(w.__dict__.keys()), ["after", "temporal_tension", "time"]
+            sorted(w.__dict__.keys()), ["after", "temporal_tension", "time", "value"]
         )
 
         print(w._etree.tostring(w.to_xml_element()))
