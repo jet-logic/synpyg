@@ -15,7 +15,6 @@ class Waypoint(WithAttrs, WithXML):
     time = Attr(strf=lambda v: timef(timep(v)))
     before = Attr()
     after = Attr()
-    tension = Attr()
     temporal_tension = Attr("temporal-tension")
     continuity = Attr()
     bias = Attr()

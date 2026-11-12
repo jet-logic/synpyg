@@ -4,7 +4,7 @@ from xml.etree import ElementTree as ET
 from synpyg.animated import Animated
 from synpyg.base import Param
 from synpyg.layer import Layer
-from synpyg.value import Angle, Boolean, Color, Integer, Real, String, Vector
+from synpyg.value import Angle, Color, String, Vector
 
 
 class StringAngleValueTest(unittest.TestCase):
@@ -64,14 +64,9 @@ class StringAngleValueTest(unittest.TestCase):
         self.assertEqual(vals, ["a", "b"])
 
 
-import subprocess
-import sys
-import textwrap
 import unittest
 
-from synpyg.canvas import Canvas
-from synpyg.layer import GroupLayer, Layer, SolidColorLayer
-from synpyg.tree.linked3 import Base
+from synpyg.layer import Layer
 from synpyg.value import Color, Vector
 
 

@@ -63,7 +63,7 @@ class Value(WithXML):
             extras += f", id={self.id!r}"
         if self.guid is not None:
             extras += f", guid={self.guid!r}"
-        return f"{self.__class__.__name__}({self.data!r}{extras})"
+        return f"{self.__class__.__name__}({self.__dict__.get('data')!r}{extras})"
 
 
 class Const(Value):
