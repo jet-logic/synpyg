@@ -1,10 +1,23 @@
 import unittest
 
-from etc.field import FloatAttr, TimeAttr, timep
+from etc.field import (
+    Attr,
+    BoolAttr,
+    FloatAttr,
+    IntAttr,
+    StringAttr,
+    TimeAttr,
+    iter_attrs,
+    timep,
+)
 
 
 class Example:
     when = TimeAttr()
+    label = StringAttr()
+    ratio = FloatAttr()
+    count = IntAttr()
+    enabled = BoolAttr()
 
 
 class TestTimep(unittest.TestCase):
@@ -60,12 +73,95 @@ class TestTimeAttr(unittest.TestCase):
         self.assertEqual(first.when, 1.0)
         self.assertEqual(second.when, 2.0)
 
+    def test_string_dumps(self):
+        obj = Example()
+        obj.label = "hello"
+        self.assertEqual(Example.label.dumps(obj), "hello")
+
+    def test_float_dumps(self):
+        obj = Example()
+        obj.ratio = 0.875
+        self.assertEqual(Example.ratio.dumps(obj), "0.875")
+
+    def test_int_dumps(self):
+        obj = Example()
+        obj.count = 42
+        self.assertEqual(Example.count.dumps(obj), "42")
+
+    def test_bool_dumps(self):
+        obj = Example()
+        obj.enabled = True
+        self.assertEqual(Example.enabled.dumps(obj), "true")
+        obj.enabled = False
+        self.assertEqual(Example.enabled.dumps(obj), "false")
+
+    def test_dumps_serializes_seconds_with_unit_suffix(self):
+        obj = Example()
+        obj.when = "1:02:03"
+        self.assertEqual(Example.when.dumps(obj), "3723.0s")
+
+    def test_dumps_serializes_numeric_assignment(self):
+        obj = Example()
+        obj.when = 0.25
+        self.assertEqual(Example.when.dumps(obj), "0.25s")
+
+    def test_base_dumps_is_not_implemented(self):
+        with self.assertRaisesRegex(NotImplementedError, "Attr"):
+            Attr().dumps(Example())
+
+
+class BaseAttrs:
+    base_label = StringAttr()
+    base_count = IntAttr()
+
+
+class MiddleAttrs(BaseAttrs):
+    middle_enabled = BoolAttr()
+
+
+class ChildAttrs(MiddleAttrs):
+    child_when = TimeAttr()
+    child_ratio = FloatAttr()
+
+
+class TestIterAttrs(unittest.TestCase):
+    def test_iterates_attrs_defined_across_multiple_inheritance_levels(self):
+        obj = ChildAttrs()
+        obj.base_label = "inherited"
+        # obj.base_count = 7
+        obj.middle_enabled = True
+        obj.child_when = "1:30"
+        obj.child_ratio = 0.5
+
+        attrs = list(iter_attrs(obj))
+
+        self.assertEqual(
+            [(name, type(descriptor), value) for name, descriptor, value in attrs],
+            [
+                ("child_when", TimeAttr, 90.0),
+                ("child_ratio", FloatAttr, 0.5),
+                ("middle_enabled", BoolAttr, True),
+                ("base_label", StringAttr, "inherited"),
+            ],
+        )
+
+    def test_subclass_descriptor_overrides_base_descriptor(self):
+        class Parent:
+            value = StringAttr()
+
+        class Child(Parent):
+            value = IntAttr()
+
+        obj = Child()
+        obj.value = 12
+
+        attrs = list(iter_attrs(obj))
+
+        self.assertEqual(len(attrs), 1)
+        self.assertEqual(attrs[0][0], "value")
+        self.assertIsInstance(attrs[0][1], IntAttr)
+        self.assertEqual(attrs[0][2], 12)
+
 
 if __name__ == "__main__":
     unittest.main()
-
-
-# target design
-w = Example()
-# w.radius = 0.87            # OK (editor see float type)
-# w.radius = "loose"         # ❌ type error: str is not float
