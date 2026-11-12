@@ -142,9 +142,10 @@ class GroupLayer(Layer, Grouping):
             # Otherwise, serialize inline child layers as before
             sub_canvas = self._etree.SubElement(canvas_param, "canvas")
             for child in self:
-                if not hasattr(child, "to_xml_element"):
-                    raise TypeError(f"Cannot serialize {type(child).__name__}")
-                assert isinstance(child, Layer)
+                if not isinstance(child, Layer):
+                    raise TypeError(
+                        f"GroupLayer children must be Layer instances, got {type(child).__name__}"
+                    )
                 sub_canvas.append(child.to_xml_element())
 
         return element

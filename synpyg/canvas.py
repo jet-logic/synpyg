@@ -50,10 +50,10 @@ class Canvas(WithXML, Grouping):
         root = self._etree.Element("canvas", attributes)
 
         for child in self:
-            if not hasattr(child, "to_xml_element"):
-                raise TypeError(f"Cannot serialize {type(child).__name__}")
-            assert isinstance(child, Layer)
-
+            if not isinstance(child, Layer):
+                raise TypeError(
+                    f"Canvas children must be Layer instances, got {type(child).__name__}"
+                )
             root.append(child.to_xml_element())
 
         return root

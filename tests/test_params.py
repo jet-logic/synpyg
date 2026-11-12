@@ -133,5 +133,55 @@ class AttrDescriptorTest(unittest.TestCase):
             Waypoint().set_params(nope=1)
 
 
+# tests/test_params.py  (or a new test_value.py)
+class NewAnimatedTest(unittest.TestCase):
+    def test_every_concrete_const_type_can_animate(self):
+        from synpyg.value import (
+            Angle,
+            Boolean,
+            Color,
+            Integer,
+            Real,
+            String,
+            Time,
+            Vector,
+        )
+
+        for cls, sample in [
+            (Real, 1.5),
+            (Integer, 3),
+            (Boolean, True),
+            (String, "hi"),
+            (Angle, 45.0),
+            (Time, 1.0),
+            (Color, [1, 0, 0, 1]),
+            (Vector, [1, 2]),
+        ]:
+            with self.subTest(cls.__name__):
+                a = cls.new_animated()
+                self.assertIsInstance(a, Animated)
+                self.assertIs(a._type, cls)
+                a.add_waypoint(0, sample)
+                el = a.to_xml_element()
+                self.assertEqual(el.get("type"), cls.tag)
+
+    def test_as_animated_on_non_vector_param(self):
+        c = CircleLayer()
+        c.radius = 1.0
+        a = c.radius.as_animated()
+        self.assertIsInstance(a, Animated)
+        self.assertIs(a._type, Real)
+        # second call returns the same Animated, not a new one
+        self.assertIs(c.radius.as_animated(), a)
+
+    def test_abstract_bases_still_reject(self):
+        from synpyg.value import Value, Const, Vec
+
+        for cls in (Value, Const, Vec):
+            with self.subTest(cls.__name__):
+                with self.assertRaises(NotImplementedError):
+                    cls.new_animated()
+
+
 if __name__ == "__main__":
     unittest.main()

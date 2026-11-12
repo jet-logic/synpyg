@@ -63,5 +63,34 @@ class StringAngleValueTest(unittest.TestCase):
         self.assertEqual(vals, ["a", "b"])
 
 
+import subprocess
+import sys
+import textwrap
+import unittest
+
+from synpyg.canvas import Canvas
+from synpyg.layer import GroupLayer, Layer, SolidColorLayer
+from synpyg.tree.linked3 import Base
+from synpyg.value import Color, Vector
+
+
+class ValueShapeTest(unittest.TestCase):
+    def test_color_rejects_wrong_length(self):
+        for bad in ([], [1], [1, 2], [1, 2, 3], [1, 2, 3, 4, 5]):
+            with self.subTest(bad=bad):
+                with self.assertRaises(ValueError):
+                    Color(bad)  # type: ignore
+
+    def test_vector_rejects_wrong_length(self):
+        for bad in ([], [1], [1, 2, 3]):
+            with self.subTest(bad=bad):
+                with self.assertRaises(ValueError):
+                    Vector(bad)  # type: ignore
+
+    def test_color_accepts_list_and_tuple(self):
+        self.assertEqual(Color([1, 2, 3, 4]).data, (1.0, 2.0, 3.0, 4.0))
+        self.assertEqual(Color((1, 2, 3, 4)).data, (1.0, 2.0, 3.0, 4.0))
+
+
 if __name__ == "__main__":
     unittest.main()

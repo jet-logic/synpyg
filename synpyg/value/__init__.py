@@ -35,7 +35,18 @@ class Value(WithXML):
 
     @classmethod
     def new_animated(cls) -> "Animated":
-        raise NotImplementedError(f"{cls.__name__}")
+        """Create an :class:`Animated` value node that produces values of ``cls``."""
+        from ..animated import Animated
+
+        if not cls.tag:
+            # A non-serializable base class (Value, Const, Vec) — don't hand out
+            # an Animated that would fail on ``self._type.tag`` at save time.
+            raise NotImplementedError(
+                f"{cls.__name__} has no tag and cannot be animated"
+            )
+        a = Animated()
+        a._type = cls
+        return a
 
     def as_prop(self, name=""):
         from ..base import Property
@@ -184,7 +195,11 @@ class Color(Vec):
     tag = "color"
 
     def __init__(self, data, **kwargs):
-        assert len(data) == 4
+        data = tuple(data)
+        if len(data) != 4:
+            raise ValueError(
+                f"Color needs exactly 4 channels (r, g, b, a), got {len(data)}"
+            )
         super().__init__(data, **kwargs)
 
     def to_xml_element(self):
@@ -198,7 +213,11 @@ class Vector(Vec):
     tag = "vector"
 
     def __init__(self, data, **kwargs):
-        assert len(data) == 2
+        data = tuple(data)
+        if len(data) != 2:
+            raise ValueError(
+                f"Vector needs exactly 2 components (x, y), got {len(data)}"
+            )
         super().__init__(data, **kwargs)
 
     def to_xml_element(self):
@@ -206,14 +225,6 @@ class Vector(Vec):
         for s, n in zip(("x", "y"), self.data):
             self._etree.SubElement(element, s).text = str(n)
         return element
-
-    @classmethod
-    def new_animated(cls) -> "Animated":
-        from ..animated import Animated
-
-        a = Animated()
-        a._type = cls
-        return a
 
 
 def timep(s: Union[str, float, int, complex, object]) -> complex:
