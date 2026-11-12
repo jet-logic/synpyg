@@ -1,4 +1,5 @@
 import unittest
+from xml.etree import ElementTree as ET
 
 from synpyg.animated import Animated, Waypoint
 from synpyg.value import Real, Vector
@@ -9,7 +10,7 @@ def vec_anim() -> Animated:
 
 
 def times(anim: Animated) -> list[str]:
-    return [w.get("time") for w in anim.to_xml_element()]
+    return [w.get("time") for w in anim.to_xml_element(ET)]  # type: ignore
 
 
 class TimeFormattingTest(unittest.TestCase):
@@ -29,7 +30,7 @@ class TimeFormattingTest(unittest.TestCase):
                 w = Waypoint()
                 w.time = raw
                 w.value = Real(1.0)
-                self.assertEqual(w.to_xml_element().get("time"), want)
+                self.assertEqual(w.to_xml_element(ET).get("time"), want)
 
     def test_bad_time_fails_at_add_not_at_save(self):
         for bad in ("soon", "1.5f", None):
@@ -42,8 +43,8 @@ class ValueCoercionTest(unittest.TestCase):
     def test_raw_list_becomes_vector(self):
         a = vec_anim().add_waypoint(0, [1, 2])
         self.assertIsInstance(a.waypoints[0].value, Vector)
-        x = a.to_xml_element()[0].find("vector/x")
-        self.assertEqual(x.text, "1")
+        x = a.to_xml_element(ET)[0].find("vector/x")
+        self.assertEqual(x.text, "1.0")  # type: ignore
 
     def test_existing_instance_is_kept(self):
         v = Vector([3, 4])
@@ -70,35 +71,55 @@ class ValuelessWaypointTest(unittest.TestCase):
         w = Waypoint().set_params(before="clamped")
         w.time = 1
         with self.assertRaisesRegex(ValueError, "no value.*time=1"):
-            w.to_xml_element()
+            w.to_xml_element(ET)
 
     def test_without_value_or_time(self):
         with self.assertRaisesRegex(ValueError, "no value"):
-            Waypoint().to_xml_element()
+            Waypoint().to_xml_element(ET)
 
 
 class OrderingTest(unittest.TestCase):
     def test_sorted_by_time_on_output(self):
-        a = vec_anim().add_waypoint(4, [6, 0]).add_waypoint(1, [0, 0]).add_waypoint(2, [3, 0])
+        a = (
+            vec_anim()
+            .add_waypoint(4, [6, 0])
+            .add_waypoint(1, [0, 0])
+            .add_waypoint(2, [3, 0])
+        )
         self.assertEqual(times(a), ["1s", "2s", "4s"])
 
     def test_mixed_time_spellings_sort_by_seconds(self):
-        a = vec_anim().add_waypoint("2s", [0, 0]).add_waypoint(1, [0, 0]).add_waypoint("1500ms", [0, 0])
+        a = (
+            vec_anim()
+            .add_waypoint("2s", [0, 0])
+            .add_waypoint(1, [0, 0])
+            .add_waypoint("1500ms", [0, 0])
+        )
         self.assertEqual(times(a), ["1s", "1.5s", "2s"])
 
     def test_equal_times_keep_insertion_order(self):
-        a = vec_anim().add_waypoint(1, [0, 0]).add_waypoint(0, [5, 5]).add_waypoint(1, [9, 9])
-        xs = [w.find("vector/x").text for w in a.to_xml_element()]
-        self.assertEqual(xs, ["5", "0", "9"])
+        a = (
+            vec_anim()
+            .add_waypoint(1, [0, 0])
+            .add_waypoint(0, [5, 5])
+            .add_waypoint(1, [9, 9])
+        )
+        xs = [w.find("vector/x").text for w in a.to_xml_element(ET)]  # type: ignore
+        self.assertEqual(xs, ["5.0", "0.0", "9.0"])
 
     def test_sorting_does_not_mutate_waypoints(self):
         a = vec_anim().add_waypoint(4, [0, 0]).add_waypoint(1, [0, 0])
-        a.to_xml_element()
+        a.to_xml_element(ET)
         self.assertEqual([w.time for w in a.waypoints], [4, 1])
 
     def test_frames_keep_insertion_order(self):
         # frames can't be compared with seconds without the canvas fps
-        a = vec_anim().add_waypoint("2s", [0, 0]).add_waypoint("12f", [0, 0]).add_waypoint(1, [0, 0])
+        a = (
+            vec_anim()
+            .add_waypoint("2s", [0, 0])
+            .add_waypoint("12f", [0, 0])
+            .add_waypoint(1, [0, 0])
+        )
         self.assertEqual(times(a), ["2s", "12f", "1s"])
 
 

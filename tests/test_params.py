@@ -1,4 +1,5 @@
 import unittest
+from xml.etree import ElementTree as ET
 
 from synpyg.animated import Animated, Waypoint
 from synpyg.base import Attr, Param, Property
@@ -7,7 +8,7 @@ from synpyg.value import Real, Vector
 
 
 def param_names(layer):
-    return [p.get("name") for p in layer.to_xml_element().findall("param")]
+    return [p.get("name") for p in layer.to_xml_element(ET).findall("param")]
 
 
 class ParamDescriptorTest(unittest.TestCase):
@@ -125,7 +126,7 @@ class AttrDescriptorTest(unittest.TestCase):
         w.time = 2
         w.temporal_tension = 0.5
         w.value = Real(1.0)
-        el = w.to_xml_element()
+        el = w.to_xml_element(ET)
         self.assertEqual(el.attrib, {"time": "2s", "temporal-tension": "0.5"})
 
     def test_set_params_unknown_raises_typeerror(self):
@@ -162,7 +163,7 @@ class NewAnimatedTest(unittest.TestCase):
                 self.assertIsInstance(a, Animated)
                 self.assertIs(a._type, cls)
                 a.add_waypoint(0, sample)
-                el = a.to_xml_element()
+                el = a.to_xml_element(ET)
                 self.assertEqual(el.get("type"), cls.tag)
 
     def test_as_animated_on_non_vector_param(self):

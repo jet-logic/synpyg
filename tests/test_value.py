@@ -1,4 +1,5 @@
 import unittest
+from xml.etree import ElementTree as ET
 
 from synpyg.animated import Animated
 from synpyg.base import Param
@@ -11,7 +12,7 @@ class StringAngleValueTest(unittest.TestCase):
         s = String("hello")
         self.assertEqual(s.data, "hello")
         self.assertIsNone(s.id)
-        self.assertEqual(s.to_xml_element().attrib, {"value": "hello"})
+        self.assertEqual(s.to_xml_element(ET).attrib, {"value": "hello"})
 
     def test_string_keeps_identifiers(self):
         s = String("x", id="foo", guid="bar")
@@ -33,7 +34,7 @@ class StringAngleValueTest(unittest.TestCase):
         a = Angle(90)
         self.assertEqual(a.data, 90.0)
         self.assertIsInstance(a.data, float)
-        self.assertEqual(a.to_xml_element().attrib, {"value": "90.0"})
+        self.assertEqual(a.to_xml_element(ET).attrib, {"value": "90.0"})
 
     def test_angle_check_value(self):
         self.assertIsInstance(Angle.check_value(1.5), Angle)
@@ -49,7 +50,7 @@ class StringAngleValueTest(unittest.TestCase):
         l.label = "hello"  # type: ignore[attr-defined]
         self.assertIsInstance(l.label.value, String)  # type: ignore[attr-defined]
         self.assertEqual(
-            l.to_xml_element().find("param").find("string").get("value"),  # type: ignore[union-attr]
+            l.to_xml_element(ET).find("param").find("string").get("value"),  # type: ignore[union-attr]
             "hello",
         )
         with self.assertRaises(ValueError):

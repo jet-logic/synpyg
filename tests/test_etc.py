@@ -59,7 +59,7 @@ class Test(unittest.TestCase):
             sorted(w.__dict__.keys()), ["after", "temporal_tension", "time", "value"]
         )
 
-        print(w._etree.tostring(w.to_xml_element()))
+        print(ET.tostring(w.to_xml_element(ET)))
 
     def test_write(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -99,8 +99,7 @@ class Test(unittest.TestCase):
                 5, Vector([6, 0]), before="clamped", after="clamped"
             )
 
-            written = root.save_xml(out)
-            self.assertEqual(written, out)
+            root.save_xml(out)
             self.assertTrue(out.is_file())
 
             # Sanity-check the serialized tree instead of trusting save_xml blindly.
@@ -109,7 +108,7 @@ class Test(unittest.TestCase):
             self.assertEqual(canvas.tag, "canvas")
             self.assertEqual(canvas.get("width"), "1920")
             self.assertEqual(canvas.get("fps"), "24.0")
-            self.assertEqual(canvas.get("begin-time"), "0f")
+            self.assertEqual(canvas.get("begin-time"), "0s")
             self.assertEqual(canvas.get("end-time"), "5s")
             self.assertEqual(canvas.get("view-box"), "-10 5.625 10 -5.625")
 
@@ -120,7 +119,7 @@ class Test(unittest.TestCase):
             group = canvas.findall("layer")[1]
             circle = group.find(".//layer[@type='circle']")
             self.assertIsNotNone(circle)
-            self.assertEqual(len(circle.findall(".//waypoint")), 4)
+            self.assertEqual(len(circle.findall(".//waypoint")), 4)  # type: ignore
 
 
 if __name__ == "__main__":

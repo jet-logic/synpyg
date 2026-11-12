@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING, Any, Optional, Self, Union
 
 
-from ..valuenode import WithXML
+from .base import WithXML
 
 if TYPE_CHECKING:
-    from ..animated import Animated
+    from .animated import Animated
 
 
 class Value(WithXML):
@@ -36,7 +36,7 @@ class Value(WithXML):
     @classmethod
     def new_animated(cls) -> "Animated":
         """Create an :class:`Animated` value node that produces values of ``cls``."""
-        from ..animated import Animated
+        from .animated import Animated
 
         if not cls.tag:
             # A non-serializable base class (Value, Const, Vec) — don't hand out
@@ -49,7 +49,7 @@ class Value(WithXML):
         return a
 
     def as_prop(self, name=""):
-        from ..base import Property
+        from .base import Property
 
         p = Property()
         p.value = self
@@ -79,8 +79,8 @@ class Real(Const):
         super().__init__(**kwargs)
         self.data = data
 
-    def to_xml_element(self):
-        return self._etree.Element("real", {"value": str(self.data)})
+    def to_xml_element(self, et):
+        return et.Element("real", {"value": str(self.data)})
 
     @classmethod
     def check_value(cls, value: Any) -> Self:
@@ -97,12 +97,12 @@ class Integer(Const):
         super().__init__(**kwargs)
         self.data = data
 
-    def to_xml_element(self):
-        return self._etree.Element("integer", {"value": str(self.data)})
+    def to_xml_element(self, et):
+        return et.Element("integer", {"value": str(self.data)})
 
     @classmethod
     def check_value(cls, value: Any) -> Self:
-        if isinstance(value, (bool, str, int, float)):
+        if isinstance(value, (str, int, float)):
             return cls(int(value))
         raise ValueError(f"Unexpected {cls.__name__} value: {value}")
 
@@ -121,8 +121,8 @@ class Boolean(Const):
             return Boolean(value)
         raise ValueError(f"Unexpected {cls.__name__} value: {value}")
 
-    def to_xml_element(self):
-        return self._etree.Element("bool", {"value": str(self.data).lower()})
+    def to_xml_element(self, et):
+        return et.Element("bool", {"value": str(self.data).lower()})
 
 
 class String(Const):
@@ -139,8 +139,8 @@ class String(Const):
             return cls(value)
         raise ValueError(f"Unexpected {cls.__name__} {value!r}")
 
-    def to_xml_element(self):
-        return self._etree.Element("string", {"value": self.data})
+    def to_xml_element(self, et):
+        return et.Element("string", {"value": self.data})
 
 
 class Angle(Const):
@@ -153,12 +153,12 @@ class Angle(Const):
 
     @classmethod
     def check_value(cls, value: Any) -> Self:
-        if isinstance(value, (bool, str, int, float)):
+        if isinstance(value, (str, int, float)):
             return cls(float(value))
         raise ValueError(f"Unexpected {cls.__name__} {value!r}")
 
-    def to_xml_element(self):
-        return self._etree.Element("angle", {"value": str(self.data)})
+    def to_xml_element(self, et):
+        return et.Element("angle", {"value": str(self.data)})
 
 
 class Time(Const):
@@ -173,8 +173,8 @@ class Time(Const):
     def check_value(cls, value):
         return Time(timep(value))
 
-    def to_xml_element(self):
-        return self._etree.Element("time", {"value": timef(self.data)})
+    def to_xml_element(self, et):
+        return et.Element("time", {"value": timef(self.data)})
 
 
 class Vec(Const):
@@ -182,7 +182,7 @@ class Vec(Const):
 
     def __init__(self, data: tuple[float, ...] | list[float], **kwargs) -> None:
         super().__init__(**kwargs)
-        self.data = tuple(data)
+        self.data = tuple(float(x) for x in data)
 
     @classmethod
     def check_value(cls, value: Any):
@@ -202,10 +202,10 @@ class Color(Vec):
             )
         super().__init__(data, **kwargs)
 
-    def to_xml_element(self):
-        element = self._etree.Element("color")
+    def to_xml_element(self, et):
+        element = et.Element("color")
         for channel, n in zip(("r", "g", "b", "a"), self.data):
-            self._etree.SubElement(element, channel).text = str(n)
+            et.SubElement(element, channel).text = str(n)
         return element
 
 
@@ -220,10 +220,10 @@ class Vector(Vec):
             )
         super().__init__(data, **kwargs)
 
-    def to_xml_element(self):
-        element = self._etree.Element("vector")
+    def to_xml_element(self, et):
+        element = et.Element("vector")
         for s, n in zip(("x", "y"), self.data):
-            self._etree.SubElement(element, s).text = str(n)
+            et.SubElement(element, s).text = str(n)
         return element
 
 

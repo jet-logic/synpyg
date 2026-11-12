@@ -1,5 +1,5 @@
 from typing import Optional
-from .valuenode import WithXML
+from .base import WithXML
 from .value import Color, Integer, Real, Time, Vector, Boolean
 from .base import Base, Param, WithParams
 
@@ -31,8 +31,8 @@ class Layer(WithParams, WithXML, Base):
         self.exclude_from_rendering: bool = exclude_from_rendering
         self.group: Optional[str] = group
 
-    def to_xml_element(self):
-        element = self._etree.Element(
+    def to_xml_element(self, et):
+        element = et.Element(
             "layer",
             {
                 "type": self.type,
@@ -55,7 +55,7 @@ class Layer(WithParams, WithXML, Base):
         # Declared params in declaration order, then ad-hoc ones; unset ones are skipped
         for _, prop in self._enum_params():
             if prop.has_value:
-                element.append(prop.to_xml_element())
+                element.append(prop.to_xml_element(et))
 
         return element
 
@@ -130,22 +130,24 @@ class GroupLayer(Layer, Grouping):
         super().__init__("group", version="0.1", desc=desc, **kwargs)
         self.use = use
 
-    def to_xml_element(self):
-        element = super().to_xml_element()
+    def to_xml_element(self, et):
+        element = super().to_xml_element(et)
 
-        canvas_param = self._etree.SubElement(element, "param", {"name": "canvas"})
+        canvas_param = et.SubElement(element, "param", {"name": "canvas"})
 
         if self.use:
             # If using a reference, set the 'use' attribute on the canvas element
-            self._etree.SubElement(canvas_param, "canvas", {"use": self.use})
+            et.SubElement(canvas_param, "canvas", {"use": self.use})
         else:
             # Otherwise, serialize inline child layers as before
-            sub_canvas = self._etree.SubElement(canvas_param, "canvas")
+            sub_canvas = et.Element("canvas")
             for child in self:
                 if not isinstance(child, Layer):
                     raise TypeError(
                         f"GroupLayer children must be Layer instances, got {type(child).__name__}"
                     )
-                sub_canvas.append(child.to_xml_element())
+                sub_canvas.append(child.to_xml_element(et))
+            if len(sub_canvas) > 0:
+                canvas_param.append(sub_canvas)
 
         return element

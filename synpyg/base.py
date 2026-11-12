@@ -1,14 +1,19 @@
 from typing import Any, Callable, ClassVar, TYPE_CHECKING, overload
-from .valuenode import WithXML
-from .value import Value
+
 from .tree.linked3 import Node
 
 if TYPE_CHECKING:
     from .animated import Animated
+    from .value import Value
 
 
 class Base(Node):
     pass
+
+
+class WithXML:
+    def to_xml_element(self, et: Any):
+        raise NotImplementedError(f"{self.__class__.__name__}")
 
 
 class Property(WithXML):
@@ -16,14 +21,14 @@ class Property(WithXML):
     A Synfig param
     """
 
-    typed: type[Value] | None
+    typed: "type[Value] | None"
     name: str
     # None means "not set": such a property is skipped when serializing.
     value: "Value | Animated | None" = None
 
     def __init__(
         self,
-        typed: type[Value] | None = None,
+        typed: "type[Value] | None" = None,
         name: str = "",
         value: "Value | Animated | None" = None,
     ):
@@ -42,25 +47,34 @@ class Property(WithXML):
     def set_value(self, value: Any):
         from .animated import Animated
 
-        if isinstance(value, Animated) or (
-            self.typed is not None and isinstance(value, self.typed)
-        ):
+        if isinstance(value, Animated):
+            if self.typed is not None and value._type is not self.typed:
+                raise ValueError(
+                    f"Animated type {value._type.__name__} does not match param type {self.typed.__name__}"
+                )
             self.value = value
+        # if isinstance(value, Animated) or (
+        #     self.typed is not None and isinstance(value, self.typed)
+        # ):
+        #     self.value = value
+        # elif type(value) is self.typed:
+        #     self.value = value
         else:
-            self.value = self.typed.check_value(value)  # type: ignore[union-attr]
+            self.value = self.typed.coerce(value)  # type: ignore[union-attr]
 
     def as_animated(self):
         from .animated import Animated
 
         if isinstance(self.value, Animated):
             return self.value
+        # TODO: preserve existing constant as a waypoint at 0:
         v = self.value = self.typed.new_animated()  # type: ignore[union-attr]
         return v
 
-    def to_xml_element(self):
-        element = self._etree.Element("param", {"name": self.name})
+    def to_xml_element(self, et):
+        element = et.Element("param", {"name": self.name})
         if self.value is not None:
-            element.append(self.value.to_xml_element())
+            element.append(self.value.to_xml_element(et))
         return element
 
 
@@ -84,7 +98,7 @@ class Param:
     are never serialized.
     """
 
-    def __init__(self, typed: type[Value], name: str | None = None):
+    def __init__(self, typed: "type[Value]", name: str | None = None):
         self.typed = typed
         self.name = name
         self.attr = ""

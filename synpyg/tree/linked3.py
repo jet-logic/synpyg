@@ -76,6 +76,12 @@ class Base:
             else:
                 return top
 
+    def root_ancestor_or_self(self):
+        top = self
+        while top._parent is not None:
+            top = top._parent
+        return top
+
     def remove(self):
         return self._detach()
 
@@ -113,15 +119,15 @@ class Node(Base):
         if child._parent is not self:
             raise RuntimeError("child not found")
 
-        nodes = [n for n in nodes if n is not child]
-        for n in nodes:
+        _nodes = [n for n in nodes if n is not child]
+        for n in _nodes:
             if n is self or any(a is n for a in self.ancestors()):
                 raise RuntimeError("cannot insert a node into itself or its descendant")
-        for n in nodes:
+        for n in _nodes:
             n._detach()
 
         prev = child._prev
-        for n in nodes:
+        for n in _nodes:
             n._attach(prev, child, self)
             prev = n._end
 

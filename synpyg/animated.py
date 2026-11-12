@@ -1,6 +1,6 @@
 from .base import Attr, WithAttrs
 from .value import Value, timef, timep
-from .valuenode import ValueNode, WithXML
+from .base import WithXML
 
 
 class Waypoint(WithAttrs, WithXML):
@@ -20,7 +20,7 @@ class Waypoint(WithAttrs, WithXML):
     continuity = Attr()
     bias = Attr()
 
-    def to_xml_element(self):
+    def to_xml_element(self, et):
         try:
             value = self.value
         except AttributeError:
@@ -28,20 +28,20 @@ class Waypoint(WithAttrs, WithXML):
             raise ValueError(
                 "Waypoint has no value" + (f" (time={at!r})" if at is not None else "")
             ) from None
-        element = self._etree.Element("waypoint")
+        element = et.Element("waypoint")
         for key, a in self._attrs.items():
             v = self.__dict__.get(key)
             if v is not None:
                 assert a.name
                 element.set(a.name, a.strf(v))
-        element.append(value.to_xml_element())
+        element.append(value.to_xml_element(et))
         return element
 
 
 # can waypoint have a value node or just const value
 
 
-class Animated(ValueNode):
+class Animated:
     _type: type[Value]
     interpolation: str | None = None
     node_id: str | None = None
@@ -75,11 +75,11 @@ class Animated(ValueNode):
         order = sorted(range(len(parsed)), key=lambda i: parsed[i].real)
         return [self.waypoints[i] for i in order]
 
-    def to_xml_element(self):
-        element = self._etree.Element("animated", {"type": self._type.tag})
+    def to_xml_element(self, et):
+        element = et.Element("animated", {"type": self._type.tag})
         # TODO: interpolation
         for child in self._ordered_waypoints():
-            element.append(child.to_xml_element())
+            element.append(child.to_xml_element(et))
         return element
 
 
