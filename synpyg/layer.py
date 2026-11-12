@@ -1,63 +1,18 @@
-from dataclasses import dataclass, fields
 from typing import Optional
 from .valuenode import WithXML
 from .value import Color, Integer, Real, Time, Vector, Boolean
-from .base import Base, Property, param
+from .base import Base, Param, WithParams
 
 
-@dataclass(eq=False, kw_only=True, init=False)
-class WithParams:
-
-    def _enum_params(self):
-        for k, v in self.__dict__.items():
-            if isinstance(v, Property):
-                yield k, v
-
-    def __getattr__(self, name):
-        for f in fields(self):
-            if f.name == name:
-                if m := f.metadata.get("parm"):
-                    p = Property()
-                    p.typed = m.get("typed")
-                    p.name = m.get("name")
-                    setattr(self, name, p)
-                    return p
-        try:
-            return super().__getattr__(name)  # type: ignore
-        except AttributeError:
-            raise AttributeError(
-                f"{self.__class__.__name__!r} has no attribute {name!r}"
-            ) from None
-
-    def set_params(self, **kwargs):
-        def _set(k, v):
-            for f in fields(self):
-                if f.name == k:
-                    if m := f.metadata.get("parm"):
-                        p = Property()
-                        p.name = f.name
-                        p.typed = m.get("typed")
-                        p.set_value(v)
-                        setattr(self, k, p)
-                        return
-            raise NameError(f"Unknow params {k}?")
-
-        for k, v in kwargs.items():
-            _set(k, v)
-
-        return self
-
-
-@dataclass(eq=False, kw_only=True, init=False)
 class Layer(WithParams, WithXML, Base):
     """
     A Synfig layer
     """
 
     TAG = "layer"
-    z_depth: Property = param("z_depth", Real)
-    amount: Property = param("amount", Real)
-    blend_method: Property = param("blend_method", Integer)
+    z_depth = Param(Real)
+    amount = Param(Real)
+    blend_method = Param(Integer)
 
     def __init__(
         self,
@@ -97,53 +52,50 @@ class Layer(WithParams, WithXML, Base):
         if self.group is not None:
             element.set("group", self.group)
 
-        # Initialize and serialize all declared parameters
-        for name, prop in self._enum_params():
-            element.append(prop.to_xml_element())
+        # Declared params in declaration order, then ad-hoc ones; unset ones are skipped
+        for _, prop in self._enum_params():
+            if prop.has_value:
+                element.append(prop.to_xml_element())
 
         return element
 
 
-@dataclass(eq=False, kw_only=True, init=False)
 class SolidColorLayer(Layer):
 
-    color: Property = param("color", Color)
+    color = Param(Color)
 
     def __init__(self, desc="", **kwargs):
         super().__init__("solid_color", version="0.1", desc=desc, **kwargs)
 
 
-@dataclass(eq=False, kw_only=True, init=False)
 class CircleLayer(Layer):
 
-    color: Property = param("color", Color)
-    radius: Property = param("radius", Real)
-    feather: Property = param("feather", Real)
-    origin: Property = param("origin", Vector)
-    invert: Property = param("invert", Boolean)
-    falloff: Property = param("falloff", Integer)
+    color = Param(Color)
+    radius = Param(Real)
+    feather = Param(Real)
+    origin = Param(Vector)
+    invert = Param(Boolean)
+    falloff = Param(Integer)
 
     def __init__(self, desc="", **kwargs):
         super().__init__("circle", version="0.1", desc=desc, **kwargs)
 
 
-@dataclass(eq=False, kw_only=True, init=False)
 class MotionBlurLayer(Layer):
     """
     A Synfig Motion Blur layer with all standard parameters.
     """
 
-    aperture: Property = param("aperture", Time)
-    subsamples_factor: Property = param("subsamples_factor", Real)
-    subsampling_type: Property = param("subsampling_type", Integer)
-    subsample_start: Property = param("subsample_start", Real)
-    subsample_end: Property = param("subsample_end", Real)
+    aperture = Param(Time)
+    subsamples_factor = Param(Real)
+    subsampling_type = Param(Integer)
+    subsample_start = Param(Real)
+    subsample_end = Param(Real)
 
     def __init__(self, desc="", **kwargs):
         super().__init__("motion_blur", version="0.1", desc=desc, **kwargs)
 
 
-@dataclass(eq=False, kw_only=True, init=False)
 class Grouping(Base):
     def add_solid_color_layer(self, *args, before: Base | None = None, **kwargs):
         e = SolidColorLayer(*args, **kwargs)
@@ -166,14 +118,13 @@ class Grouping(Base):
         return layer
 
 
-@dataclass(eq=False, kw_only=True, init=False)
 class GroupLayer(Layer, Grouping):
     """
     A Synfig Group layer that can either contain inline child layers
     or reference an external/exported canvas via the 'use' attribute.
     """
 
-    origin: Property = param("origin", Vector)
+    origin = Param(Vector)
 
     def __init__(self, desc="", use: Optional[str] = None, **kwargs):
         super().__init__("group", version="0.1", desc=desc, **kwargs)

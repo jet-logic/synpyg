@@ -1,5 +1,6 @@
 import unittest
 
+from synpyg.animated import Waypoint
 from synpyg.base import Property
 from synpyg.canvas import Canvas
 from synpyg.value import Color, Integer, Real, Vector
@@ -43,6 +44,19 @@ class Test(unittest.TestCase):
         self.assertSequenceEqual(
             [k for k, v in s._enum_params()], ["amount", "blend_method", "flag"]
         )
+
+    def test_Waypoint(self):
+        w = Waypoint()
+        # w.before
+        w.time = 4
+        w.after = "qerreq"
+        w.temporal_tension = 0.87
+        print({k: a.name for k, a in w._attrs.items()})
+        self.assertSequenceEqual(
+            sorted(w.__dict__.keys()), ["after", "temporal_tension", "time"]
+        )
+
+        print(w._etree.tostring(w.to_xml_element()))
 
     def test_write(self):
         root = Canvas(
