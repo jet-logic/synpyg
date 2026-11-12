@@ -17,7 +17,7 @@ class Layer(WithParams, WithXML, Base):
     def __init__(
         self,
         type: str,
-        version: str,
+        version: str = "0.1",
         desc: Optional[str] = None,
         active: bool = True,
         exclude_from_rendering: bool = False,

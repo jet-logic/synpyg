@@ -1,5 +1,7 @@
+from pathlib import Path
+import tempfile
 import unittest
-
+from xml.etree import ElementTree as ET
 from synpyg.animated import Waypoint
 from synpyg.base import Property
 from synpyg.canvas import Canvas
@@ -60,34 +62,36 @@ class Test(unittest.TestCase):
         print(w._etree.tostring(w.to_xml_element()))
 
     def test_write(self):
-        root = Canvas(
-            version="1.2",
-            width=1920,
-            height=1080,
-            fps=24.000,
-            start_time="0f",
-            end_time="5s",
-            view_box="-10 5.625 10 -5.625",
-        )
-        print(root.__class__.__mro__)
-        if sol := root.add_solid_color_layer("Background"):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "test.sif"
+
+            root = Canvas(
+                version="1.2",
+                width=1920,
+                height=1080,
+                fps=24.000,
+                begin_time="0f",
+                end_time="5s",
+                view_box="-10 5.625 10 -5.625",
+            )
+
+            sol = root.add_solid_color_layer("Background")
             self.assertEqual(sol.desc, "Background")
-            # print("sol.color.value", sol.color.value)
-            # sol.color.set_value((1, 0, 1, 1))
             sol.set_params(color=(1, 0, 1, 1))
-            print("sol.color.value", sol.color.value)
+            self.assertIsInstance(sol.color.value, Color)
 
-        if g := root.add_group_layer():
-            if cir := g.add_circle_layer("MovingBall"):
-                cir.color.set_value([0, 0.8, 0.8, 1.0])
-                cir.radius.set_value(1.2)
-            if mbl := g.add_motion_blur_layer("MotionBlur"):
-                mbl.set_params(subsample_start=0, subsample_end=1)
-                mbl.aperture.set_value(0.75)
-                mbl.subsampling_type.set_value(3)
+            g = root.add_group_layer()
+            cir = g.add_circle_layer("MovingBall")
+            cir.color.set_value([0, 0.8, 0.8, 1.0])
+            cir.radius.set_value(1.2)
 
-            a = cir.origin.as_animated()
-            a.add_waypoint(
+            mbl = g.add_motion_blur_layer("MotionBlur")
+            mbl.set_params(subsample_start=0, subsample_end=1)
+            mbl.aperture.set_value(0.75)
+            mbl.subsampling_type.set_value(3)
+
+            anim = cir.origin.as_animated()
+            anim.add_waypoint(
                 0, Vector([-6, 0]), before="clamped", after="clamped"
             ).add_waypoint(1, Vector([-6, 0])).add_waypoint(
                 4, Vector([6, 0]), before="clamped", after="clamped"
@@ -95,7 +99,28 @@ class Test(unittest.TestCase):
                 5, Vector([6, 0]), before="clamped", after="clamped"
             )
 
-        root.save_xml("/tmp/test.sif")
+            written = root.save_xml(out)
+            self.assertEqual(written, out)
+            self.assertTrue(out.is_file())
+
+            # Sanity-check the serialized tree instead of trusting save_xml blindly.
+            tree = ET.parse(out)
+            canvas = tree.getroot()
+            self.assertEqual(canvas.tag, "canvas")
+            self.assertEqual(canvas.get("width"), "1920")
+            self.assertEqual(canvas.get("fps"), "24.0")
+            self.assertEqual(canvas.get("begin-time"), "0f")
+            self.assertEqual(canvas.get("end-time"), "5s")
+            self.assertEqual(canvas.get("view-box"), "-10 5.625 10 -5.625")
+
+            layer_types = [el.get("type") for el in canvas.findall("layer")]
+            self.assertEqual(layer_types, ["solid_color", "group"])
+
+            # The animated origin on the circle should have produced waypoints.
+            group = canvas.findall("layer")[1]
+            circle = group.find(".//layer[@type='circle']")
+            self.assertIsNotNone(circle)
+            self.assertEqual(len(circle.findall(".//waypoint")), 4)
 
 
 if __name__ == "__main__":

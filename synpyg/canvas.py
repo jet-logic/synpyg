@@ -1,11 +1,9 @@
-from dataclasses import dataclass
 from typing import Any, Optional
 from pathlib import Path
 from .valuenode import WithXML
 from .layer import Grouping, Layer
 
 
-@dataclass(eq=False, kw_only=True, init=False)
 class Canvas(WithXML, Grouping):
     """
     A Synfig canvas

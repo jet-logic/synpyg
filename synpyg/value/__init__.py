@@ -17,10 +17,10 @@ class Value(WithXML):
     # loop?
     # static?
     # interpolation?
-
-    def __init__(self, id=None, guid=None) -> None:
-        self.id = None
-        self.guid = None
+    def __init__(self, id: Optional[str] = None, guid: Optional[str] = None) -> None:
+        """Initialize optional Synfig value identifiers."""
+        self.id = id
+        self.guid = guid
 
     @classmethod
     def check_value(cls, value: Any) -> Self:
@@ -43,6 +43,7 @@ class Value(WithXML):
         p = Property()
         p.value = self
         p.name = name
+        p.typed = self.__class__
         return p
 
     def __repr__(self) -> str:
@@ -74,7 +75,7 @@ class Real(Const):
     def check_value(cls, value: Any) -> Self:
         if isinstance(value, (bool, str, int, float)):
             return cls(float(value))
-        raise ValueError(f"Unexpected boolean {value}")
+        raise ValueError(f"Unexpected {cls.__name__} {value}")
 
 
 class Integer(Const):
@@ -92,7 +93,7 @@ class Integer(Const):
     def check_value(cls, value: Any) -> Self:
         if isinstance(value, (bool, str, int, float)):
             return cls(int(value))
-        raise ValueError(f"Unexpected boolean {value}")
+        raise ValueError(f"Unexpected {cls.__name__} value: {value}")
 
 
 class Boolean(Const):
@@ -107,7 +108,7 @@ class Boolean(Const):
     def check_value(cls, value):
         if isinstance(value, bool):
             return Boolean(value)
-        raise ValueError(f"Unexpected boolean {value}")
+        raise ValueError(f"Unexpected {cls.__name__} value: {value}")
 
     def to_xml_element(self):
         return self._etree.Element("bool", {"value": str(self.data).lower()})
@@ -117,6 +118,16 @@ class String(Const):
     data: str
     tag = "string"
 
+    def __init__(self, data: str, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.data = data
+
+    @classmethod
+    def check_value(cls, value: Any) -> Self:
+        if isinstance(value, str):
+            return cls(value)
+        raise ValueError(f"Unexpected {cls.__name__} {value!r}")
+
     def to_xml_element(self):
         return self._etree.Element("string", {"value": self.data})
 
@@ -124,6 +135,16 @@ class String(Const):
 class Angle(Const):
     data: float
     tag = "angle"
+
+    def __init__(self, data: float, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.data = data + 0.0
+
+    @classmethod
+    def check_value(cls, value: Any) -> Self:
+        if isinstance(value, (bool, str, int, float)):
+            return cls(float(value))
+        raise ValueError(f"Unexpected {cls.__name__} {value!r}")
 
     def to_xml_element(self):
         return self._etree.Element("angle", {"value": str(self.data)})

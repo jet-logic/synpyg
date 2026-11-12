@@ -4,6 +4,13 @@ from .valuenode import ValueNode, WithXML
 
 
 class Waypoint(WithAttrs, WithXML):
+    """
+    A Synfig Waypoint
+    """
+
+    # NOTE: member validation is done by Animated class
+    #       Waypoint should remain a lightweight data and serialization class
+    # TODO: use attribute
     value: Value
     time = Attr(strf=lambda v: timef(timep(v)))
     before = Attr()
@@ -25,6 +32,7 @@ class Waypoint(WithAttrs, WithXML):
         for key, a in self._attrs.items():
             v = self.__dict__.get(key)
             if v is not None:
+                assert a.name
                 element.set(a.name, a.strf(v))
         element.append(value.to_xml_element())
         return element

@@ -42,10 +42,12 @@ class Property(WithXML):
     def set_value(self, value: Any):
         from .animated import Animated
 
-        if isinstance(value, Animated):
+        if isinstance(value, Animated) or (
+            self.typed is not None and isinstance(value, self.typed)
+        ):
             self.value = value
         else:
-            self.value = self.typed.coerce(value)  # type: ignore[union-attr]
+            self.value = self.typed.check_value(value)  # type: ignore[union-attr]
 
     def as_animated(self):
         from .animated import Animated
