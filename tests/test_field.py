@@ -315,7 +315,7 @@ class TestQuadFloatAttr(unittest.TestCase):
     def test_dumps(self):
         o = self.O()
         o.quad = (1, 2.5, 3, 4)
-        self.assertEqual(self.O.quad.dumps(o), "1.0 2.5 3.0 4.0")
+        self.assertEqual(self.O.quad.dumps(o), "1 2.5 3 4")
 
     def test_missing_raises_attribute_error(self):
         with self.assertRaises(AttributeError):

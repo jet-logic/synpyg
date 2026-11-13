@@ -108,7 +108,7 @@ class Test(unittest.TestCase):
             canvas = tree.getroot()
             self.assertEqual(canvas.tag, "canvas")
             self.assertEqual(canvas.get("width"), "1920")
-            self.assertEqual(canvas.get("fps"), "24.0")
+            self.assertEqual(canvas.get("fps"), "24")
             self.assertEqual(canvas.get("begin-time"), "0s")
             self.assertEqual(canvas.get("end-time"), "5s")
             self.assertEqual(canvas.get("view-box"), "-10 5.625 10 -5.625")

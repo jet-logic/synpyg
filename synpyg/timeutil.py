@@ -39,9 +39,8 @@ def _parse(s: str, fps: float | None, original: str) -> float:
     return float(s)
 
 
+from .numfmt import fmt_num
+
+
 def fmt_time(seconds: float) -> str:
-    """0s, 2s, 1.5s -- never exponent notation."""
-    s = f"{seconds:.9f}".rstrip("0").rstrip(".")
-    if s in ("", "-0"):
-        s = "0"
-    return s + "s"
+    return fmt_num(seconds) + "s"

@@ -3,6 +3,9 @@ from .base import WithFields, WithXML
 from .field import FloatAttr, IntAttr, StringAttr, TimeAttr
 from .layer import Grouping, Layer
 
+from typing import Any, Optional, Sequence
+from .field import FloatAttr, IntAttr, QuadFloatAttr, StringAttr, TimeAttr
+
 
 class Canvas(WithFields, WithXML, Grouping):
     version = StringAttr(required=True)
@@ -11,7 +14,7 @@ class Canvas(WithFields, WithXML, Grouping):
     fps = FloatAttr(required=True)
     begin_time = TimeAttr(name="begin-time", fps_attr="fps")
     end_time = TimeAttr(name="end-time", fps_attr="fps")
-    view_box = StringAttr(name="view-box")
+    view_box = QuadFloatAttr(name="view-box")
 
     def __init__(
         self,

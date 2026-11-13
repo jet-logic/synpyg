@@ -1,15 +1,23 @@
 from typing import Optional
-from .base import WithXML
-from .value import Color, Integer, Real, Time, Vector, Boolean
-from .base import Base, Param, WithParams
+from synpyg.base import WithXML
+from synpyg.base import Base, Param, WithParams
+from synpyg.base import Base, Param, WithFields, WithParams, WithXML
+from synpyg.value import Color, Integer, Real, Time, Vector, Boolean
+from synpyg.field import BoolAttr, StringAttr
 
 
-class Layer(WithParams, WithXML, Base):
-    """
-    A Synfig layer
-    """
-
+class Layer(WithParams, WithFields, WithXML, Base):
     TAG = "layer"
+
+    # XML attributes of <layer>
+    layer_type = StringAttr(name="type", required=True)
+    version = StringAttr(required=True)
+    desc = StringAttr()
+    active = BoolAttr(required=True)
+    exclude_from_rendering = BoolAttr()
+    group = StringAttr()
+
+    # <param>s
     z_depth = Param(Real)
     amount = Param(Real)
     blend_method = Param(Integer)
@@ -17,46 +25,27 @@ class Layer(WithParams, WithXML, Base):
     def __init__(
         self,
         type: str,
-        version: str = "0.1",
-        desc: Optional[str] = None,
-        active: bool = True,
-        exclude_from_rendering: bool = False,
-        group: Optional[str] = None,
+        version="0.1",
+        desc=None,
+        active=True,
+        exclude_from_rendering=False,
+        group=None,
     ):
         super().__init__()
-        self.type: str = type
-        self.version: str = version
-        self.desc: Optional[str] = desc
-        self.active: bool = active
-        self.exclude_from_rendering: bool = exclude_from_rendering
-        self.group: Optional[str] = group
+        self.layer_type = type
+        self.version = version
+        if desc is not None:
+            self.desc = desc
+        self.active = active
+        self.exclude_from_rendering = exclude_from_rendering
+        if group is not None:
+            self.group = group
 
     def to_xml_element(self, et):
-        element = et.Element(
-            "layer",
-            {
-                "type": self.type,
-                "version": self.version,
-            },
-        )
-
-        if self.desc is not None:
-            element.set("desc", self.desc)
-
-        if self.active is not None:
-            element.set("active", str(self.active).lower())
-
-        if self.exclude_from_rendering:
-            element.set("exclude_from_rendering", "true")
-
-        if self.group is not None:
-            element.set("group", self.group)
-
-        # Declared params in declaration order, then ad-hoc ones; unset ones are skipped
+        element = et.Element("layer", self._xml_attrs())
         for _, prop in self._enum_params():
             if prop.has_value:
                 element.append(prop.to_xml_element(et))
-
         return element
 
 

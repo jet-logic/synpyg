@@ -137,6 +137,18 @@ def _collect(cls: type, kind: type) -> dict[str, Any]:
     return found
 
 
+def _merge_declared(cls: type, found: dict[str, Any]) -> None:
+    """Add ``found`` to ``cls._declared``; a name can't be both a Param and a Field."""
+    for k, v in found.items():
+        old = cls._declared.get(k)  # type: ignore[attr-defined]
+        if old is not None and isinstance(old, Param) != isinstance(v, Param):
+            raise TypeError(
+                f"{cls.__name__}.{k} is declared as both a Param and a Field; "
+                f"give the Field a different Python name (name=... sets the XML name)"
+            )
+    cls._declared = {**cls._declared, **found}  # type: ignore[attr-defined]
+
+
 class _Declared:
     """Shared ``set_params`` for classes that declare descriptors of one kind."""
 
