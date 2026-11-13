@@ -54,7 +54,7 @@ class Test(unittest.TestCase):
         w.after = "qerreq"
         w.temporal_tension = 0.87
         w.value = Real(1.0)
-        print({k: a.name for k, a in w._attrs.items()})
+
         self.assertSequenceEqual(
             sorted(w.__dict__.keys()), ["after", "temporal_tension", "time", "value"]
         )
@@ -62,8 +62,9 @@ class Test(unittest.TestCase):
         print(ET.tostring(w.to_xml_element(ET)))
 
     def test_write(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            out = Path(tmp) / "test.sif"
+
+        if 1:
+            out = Path(tempfile.gettempdir()) / "test.sif"
 
             root = Canvas(
                 version="1.2",
@@ -77,7 +78,7 @@ class Test(unittest.TestCase):
 
             sol = root.add_solid_color_layer("Background")
             self.assertEqual(sol.desc, "Background")
-            sol.set_params(color=(1, 0, 1, 1))
+            sol.set_params(color=(0.5, 1, 0, 1))
             self.assertIsInstance(sol.color.value, Color)
 
             g = root.add_group_layer()

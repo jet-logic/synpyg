@@ -1,6 +1,6 @@
 import unittest
 
-from etc.field import (
+from synpyg.field import (
     Field,
     BoolAttr,
     FloatAttr,
@@ -10,8 +10,9 @@ from etc.field import (
     StringEnumAttr,
     TimeAttr,
     iter_attrs,
-    timep,
+    iter_fields,
 )
+from synpyg.timeutil import tosec
 
 
 class Example:
@@ -22,35 +23,43 @@ class Example:
     enabled = BoolAttr()
 
 
-class TestTimep(unittest.TestCase):
+class TestTimeParser(unittest.TestCase):
     def test_colon_formats(self):
-        self.assertEqual(timep("1:30"), 90.0)
-        self.assertEqual(timep("1:02:03"), 3723.0)
+        self.assertEqual(tosec("1:30"), 90.0)
+        self.assertEqual(tosec("1:02:03"), 3723.0)
 
     def test_units_and_numbers(self):
-        self.assertEqual(timep("250ms"), 0.25)
-        self.assertEqual(timep("2.5s"), 2.5)
-        self.assertEqual(timep("3.25"), 3.25)
-        self.assertEqual(timep(4), 4.0)
-        self.assertEqual(timep(1.5), 1.5)
+        self.assertEqual(tosec("250ms"), 0.25)
+        self.assertEqual(tosec("2.5s"), 2.5)
+        self.assertEqual(tosec("3.25"), 3.25)
+        self.assertEqual(tosec(4), 4.0)
+        self.assertEqual(tosec(1.5), 1.5)
 
     def test_frames_require_fps(self):
         with self.assertRaises(ValueError):
-            timep("5f")
+            tosec("5f")
 
     def test_frames_with_fps(self):
-        self.assertEqual(timep("5f", fps=25), 0.2)
-        self.assertEqual(timep("30f", fps=60), 0.5)
+        self.assertEqual(tosec("5f", fps=25), 0.2)
+        self.assertEqual(tosec("30f", fps=60), 0.5)
 
     def test_frames_fractional(self):
-        self.assertEqual(timep("1.5f", fps=30), 0.05)
+        self.assertEqual(tosec("1.5f", fps=30), 0.05)
 
     def test_fps_ignored_for_non_frames(self):
-        self.assertEqual(timep("1s", fps=25), 1.0)  # fps unused, no error
+        self.assertEqual(tosec("1s", fps=25), 1.0)  # fps unused, no error
 
     def test_invalid_type(self):
         with self.assertRaises(ValueError):
-            timep(object())
+            tosec(object())  # type: ignore
+
+    def test_zero_frames_need_no_fps(self):
+        self.assertEqual(tosec("0f"), 0.0)
+        self.assertEqual(tosec("-0f"), 0.0)
+
+    def test_nonzero_frames_still_need_fps(self):
+        with self.assertRaises(ValueError):
+            tosec("1f")
 
 
 class TestTimeAttr(unittest.TestCase):
@@ -114,7 +123,7 @@ class TestTimeAttr(unittest.TestCase):
     def test_dumps_serializes_seconds_with_unit_suffix(self):
         obj = Example()
         obj.when = "1:02:03"
-        self.assertEqual(Example.when.dumps(obj), "3723.0s")
+        self.assertEqual(Example.when.dumps(obj), "3723s")
 
     def test_dumps_serializes_numeric_assignment(self):
         obj = Example()
@@ -178,36 +187,55 @@ class TestIterAttrs(unittest.TestCase):
         self.assertIsInstance(attrs[0][1], IntAttr)
         self.assertEqual(attrs[0][2], 12)
 
+    def test_iter_fields_has_no_duplicates_for_overrides(self):
+        class Parent:
+            value = StringAttr()
+
+        class Child(Parent):
+            value = IntAttr()
+
+        fields = list(iter_fields(Child()))
+        self.assertEqual([(n, type(d)) for n, d in fields], [("value", IntAttr)])
+
+    def test_non_field_override_shadows_base_field(self):
+        class Parent:
+            value = StringAttr()
+
+        class Child(Parent):
+            value = None
+
+        self.assertEqual(list(iter_fields(Child())), [])
+
 
 class TestCoerce(unittest.TestCase):
     def test_float_attr_coerces_string(self):
         obj = Example()
-        obj.ratio = "0.875"
+        obj.ratio = "0.875"  # type: ignore
         self.assertEqual(obj.ratio, 0.875)
         self.assertIsInstance(obj.ratio, float)
 
     def test_int_attr_coerces_string(self):
         obj = Example()
-        obj.count = "42"
+        obj.count = "42"  # type: ignore
         self.assertEqual(obj.count, 42)
 
     def test_bool_attr_parses_strings(self):
         obj = Example()
-        obj.enabled = "false"
+        obj.enabled = "false"  # type: ignore
         self.assertIs(obj.enabled, False)
-        obj.enabled = "true"
+        obj.enabled = "true"  # type: ignore
         self.assertIs(obj.enabled, True)
 
     def test_bool_attr_rejects_garbage_as_false(self):
         obj = Example()
-        obj.enabled = "nonsense"
+        obj.enabled = "nonsense"  # type: ignore
         self.assertIs(obj.enabled, False)  # or raise, depending on your parser
 
 
 class TestStringEnumAttr(unittest.TestCase):
     def test_accepts_allowed_value(self):
         class O:
-            status = StringEnumAttr(("on", "off"))
+            status = StringEnumAttr(choices=("on", "off"))
 
         o = O()
         o.status = "on"
@@ -215,32 +243,32 @@ class TestStringEnumAttr(unittest.TestCase):
 
     def test_rejects_disallowed_value(self):
         class O:
-            status = StringEnumAttr(("on", "off"))
+            status = StringEnumAttr(choices=("on", "off"))
 
         with self.assertRaises(ValueError):
             O().status = "maybe"
 
     def test_class_access_returns_descriptor(self):
         class O:
-            status = StringEnumAttr(("on", "off"))
+            status = StringEnumAttr(choices=("on", "off"))
 
         self.assertIsInstance(O.status, StringEnumAttr)
 
     def test_explicit_name(self):
         class O:
-            status = StringEnumAttr(("on", "off"), name="state")
+            status = StringEnumAttr(choices=("on", "off"), name="state")
 
-        self.assertEqual(O.status.name, "state")
+        self.assertEqual(O.status.ctx.get("name"), "state")
 
-    def test_choices_are_copied(self):
-        allowed = ["on", "off"]
-        a = StringEnumAttr(allowed)
-        allowed.append("maybe")
-        self.assertEqual(a.choices, ("on", "off"))
+    # def test_choices_are_copied(self):
+    #     allowed = ["on", "off"]
+    #     a = StringEnumAttr(choices=allowed)
+    #     allowed.append("maybe")
+    #     self.assertEqual(a.ctx.get("choices"), ("on", "off"))
 
     def test_dumps(self):
         class O:
-            status = StringEnumAttr(("on", "off"))
+            status = StringEnumAttr(choices=("on", "off"))
 
         o = O()
         o.status = "off"

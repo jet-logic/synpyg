@@ -2,7 +2,7 @@ import unittest
 from xml.etree import ElementTree as ET
 
 from synpyg.animated import Animated, Waypoint
-from synpyg.base import Attr, Param, Property
+from synpyg.base import Param
 from synpyg.layer import CircleLayer, GroupLayer, Layer, MotionBlurLayer
 from synpyg.value import Real, Vector
 

@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, Any, Optional, Self, Union
 
+from synpyg.timeutil import fmt_time, tosec
+
 
 from .base import WithXML
 
@@ -162,19 +164,19 @@ class Angle(Const):
 
 
 class Time(Const):
-    data: complex
+    data: float  # seconds
     tag = "time"
 
     def __init__(self, data, **kwargs):
         super().__init__(**kwargs)
-        self.data = data
+        self.data = tosec(data)
 
     @classmethod
     def check_value(cls, value):
-        return Time(timep(value))
+        return cls(value)
 
     def to_xml_element(self, et):
-        return et.Element("time", {"value": timef(self.data)})
+        return et.Element("time", {"value": fmt_time(self.data)})
 
 
 class Vec(Const):
@@ -225,66 +227,3 @@ class Vector(Vec):
         for s, n in zip(("x", "y"), self.data):
             et.SubElement(element, s).text = str(n)
         return element
-
-
-def timep(s: Union[str, float, int, complex, object]) -> complex:
-    if isinstance(s, str):
-        s = s.strip()
-        if ":" in s:
-            parts = [float(p) for p in s.lstrip(":").rsplit(":", 2)]
-            total = parts.pop()
-            if parts:
-                total += parts.pop() * 60
-            if parts:
-                total += parts.pop() * 3600
-            return complex(total)
-        elif s.endswith("ms"):
-            return complex(float(s[:-2]) / 1000)
-        elif s.endswith("s"):
-            return complex(float(s[:-1]))
-        elif s.endswith("f"):
-            return complex(0, float(s[:-1]))  # frames in imaginary part
-        else:
-            return complex(float(s))  # plain number string
-    elif isinstance(s, (float, int)):
-        return complex(float(s))
-    elif isinstance(s, complex):
-        return s
-    raise ValueError(f"Invalid time {s!r}")
-
-
-def timef(v: complex) -> str:
-    """Format synfig time.
-
-    .real = time in seconds (serialized with 's' suffix)
-    .imag = frame offset    (serialized with 'f' suffix)
-    """
-    secs = v.real
-    frames = v.imag
-
-    # Normalize -0.0 and ints that are whole numbers
-    def _fmt_secs(x: float) -> str:
-        if x == int(x):
-            return str(int(x))
-        # repr gives shortest round-trip form; strip a trailing '.0'
-        return repr(x)
-
-    def _fmt_frames(x: float) -> str:
-        # frames are logically integers; require them to be whole
-        if x != int(x):
-            raise ValueError(f"frame count must be integral, got {x!r}")
-        return str(int(x))
-
-    has_secs = secs != 0
-    has_frames = frames != 0
-
-    if not has_secs and not has_frames:
-        return "0s"
-
-    parts = []
-    if has_secs:
-        parts.append(_fmt_secs(secs) + "s")
-    if has_frames:
-        parts.append(_fmt_frames(frames) + "f")
-
-    return " ".join(parts)

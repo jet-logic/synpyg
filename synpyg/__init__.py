@@ -5,4 +5,5 @@
 """Synfig
 repository: https://github.com/synfig/synfig
 developer docs: https://synfig-docs-dev.readthedocs.org/
+docs: https://deepwiki.com/synfig/synfig
 """

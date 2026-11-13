@@ -127,45 +127,6 @@ class Param:
         obj.__dict__.pop(self.attr, None)
 
 
-class Attr:
-    """
-    Declares an XML attribute on a class, e.g. ``time`` on ``<waypoint time="4s">``.
-
-    ``name`` is the XML attribute name (defaults to the Python name), ``strf``
-    formats the value. Unlike :class:`Param`, reading an unset attribute raises
-    ``AttributeError``, and unset attributes are omitted from the XML.
-    """
-
-    def __init__(self, name: str | None = None, strf: Callable[[Any], str] = str):
-        self.name = name
-        self.strf = strf
-        self.attr = ""
-
-    def __set_name__(self, owner: type, attr: str):
-        self.attr = attr
-        if self.name is None:
-            self.name = attr
-
-    def __get__(self, obj, owner=None):
-        if obj is None:
-            return self
-        try:
-            return obj.__dict__[self.attr]
-        except KeyError:
-            raise AttributeError(
-                f"{type(obj).__name__!r} object has no attribute {self.attr!r}"
-            ) from None
-
-    def __set__(self, obj, value: Any):
-        obj.__dict__[self.attr] = value
-
-    def __delete__(self, obj):
-        try:
-            del obj.__dict__[self.attr]
-        except KeyError:
-            raise AttributeError(self.attr) from None
-
-
 def _collect(cls: type, kind: type) -> dict[str, Any]:
     """Descriptors of ``kind`` on ``cls`` and its bases: parents first, in declaration order."""
     found: dict[str, Any] = {}
@@ -198,7 +159,8 @@ class WithParams(_Declared):
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        cls._params = cls._declared = _collect(cls, Param)
+        cls._params = _collect(cls, Param)
+        cls._declared = {**cls._declared, **cls._params}
 
     def _enum_params(self):
         """
@@ -215,11 +177,27 @@ class WithParams(_Declared):
                 yield k, v
 
 
-class WithAttrs(_Declared):
-    """Mixin for classes declaring :class:`Attr` descriptors."""
+from .field import Field  # field.py only imports timeutil, so no cycle
 
-    _attrs: ClassVar[dict[str, Attr]] = {}
+
+class WithFields(_Declared):
+    _fields: ClassVar[dict[str, Field]] = {}
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        cls._attrs = cls._declared = _collect(cls, Attr)
+        cls._fields = _collect(cls, Field)
+        cls._declared = {**cls._declared, **cls._fields}
+
+    def _enum_fields(self):
+        """Yield (attr, Field, value) for every field that is set, in declaration order."""
+        d = self.__dict__
+        for k, f in self._fields.items():
+            if k in d:
+                yield k, f, d[k]
+
+    def _xml_attrs(self) -> dict[str, str]:
+        d = self.__dict__
+        for k, f in self._fields.items():
+            if f.ctx.get("required") and k not in d:
+                raise ValueError(f"{self.__class__.__name__} has no {k}")
+        return {f.name: f.dumpv(v) for _, f, v in self._enum_fields()}
