@@ -276,50 +276,50 @@ class TestStringEnumAttr(unittest.TestCase):
 
 
 class TestQuadFloatAttr(unittest.TestCase):
-    class Box:
-        quad = QuadFloatAttr()
+    class View:
+        box = QuadFloatAttr()
 
     def test_coerces_ints_to_floats(self):
-        o = self.Box()
-        o.quad = (1, 2, 3, 4)
-        self.assertEqual(o.quad, (1.0, 2.0, 3.0, 4.0))
-        self.assertIsInstance(o.quad[0], float)
+        o = self.View()
+        o.box = (1, 2, 3, 4)
+        self.assertEqual(o.box, (1.0, 2.0, 3.0, 4.0))
+        self.assertIsInstance(o.box[0], float)
 
     def test_accepts_list_and_generator(self):
-        o = self.Box()
-        o.quad = [1.0, 2.0, 3.0, 4.0]
-        self.assertEqual(o.quad, (1.0, 2.0, 3.0, 4.0))
-        o.quad = (float(i) for i in range(4))
-        self.assertEqual(o.quad, (0.0, 1.0, 2.0, 3.0))
+        o = self.View()
+        o.box = [1.0, 2.0, 3.0, 4.0]
+        self.assertEqual(o.box, (1.0, 2.0, 3.0, 4.0))
+        o.box = (float(i) for i in range(4))
+        self.assertEqual(o.box, (0.0, 1.0, 2.0, 3.0))
 
     def test_rejects_wrong_length(self):
-        o = self.Box()
+        o = self.View()
         with self.assertRaises(ValueError):
-            o.quad = (1.0, 2.0, 3.0)
+            o.box = (1.0, 2.0, 3.0)
         with self.assertRaises(ValueError):
-            o.quad = (1.0, 2.0, 3.0, 4.0, 5.0)
+            o.box = (1.0, 2.0, 3.0, 4.0, 5.0)
 
     def test_rejects_non_numeric(self):
-        o = self.Box()
+        o = self.View()
         with self.assertRaises((TypeError, ValueError)):
-            o.quad = (1.0, 2.0, "x", 4.0)
+            o.box = (1.0, 2.0, "x", 4.0)
 
     def test_stored_as_tuple(self):
-        o = self.Box()
-        o.quad = [1, 2, 3, 4]
-        self.assertIsInstance(o.quad, tuple)
+        o = self.View()
+        o.box = [1, 2, 3, 4]
+        self.assertIsInstance(o.box, tuple)
 
     def test_class_access_returns_descriptor(self):
-        self.assertIsInstance(self.Box.quad, QuadFloatAttr)
+        self.assertIsInstance(self.View.box, QuadFloatAttr)
 
     def test_dumps(self):
-        o = self.Box()
-        o.quad = (1, 2.5, 3, 4)
-        self.assertEqual(self.Box.quad.dumps(o), "1 2.5 3 4")
+        o = self.View()
+        o.box = (1, 2.5, 3, 4)
+        self.assertEqual(self.View.box.dumps(o), "1 2.5 3 4")
 
     def test_missing_raises_attribute_error(self):
         with self.assertRaises(AttributeError):
-            _ = self.Box().quad
+            _ = self.View().box
 
 
 if __name__ == "__main__":

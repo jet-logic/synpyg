@@ -128,7 +128,12 @@ class TimeAttr(Field):
         return super().__get__(obj, owner)
 
     def __set__(self, obj: object, value: str | float | int):
-        super().__set__(obj, tosec(value))
+        # ``fps_attr`` names a sibling attribute holding the frame rate, so that
+        # frame values such as "12f" can be resolved. It is read at assignment
+        # time: the stored value is seconds and is not re-derived if fps changes.
+        fps_attr = self.ctx.get("fps_attr")
+        fps = getattr(obj, fps_attr, None) if fps_attr else None
+        super().__set__(obj, tosec(value, fps))
 
     def dumps(self, obj):
         return fmt_time(obj.__dict__[self.attr])

@@ -167,9 +167,10 @@ class Time(Const):
     data: float  # seconds
     tag = "time"
 
-    def __init__(self, data, **kwargs):
+    def __init__(self, data, fps: float | None = None, **kwargs):
+        """``data`` may be seconds or a time string; frames ("12f") need ``fps``."""
         super().__init__(**kwargs)
-        self.data = tosec(data)
+        self.data = tosec(data, fps)
 
     @classmethod
     def check_value(cls, value):

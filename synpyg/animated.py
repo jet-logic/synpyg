@@ -1,4 +1,5 @@
 from .field import FloatAttr, StringAttr, TimeAttr
+from .timeutil import tosec
 from .value import Value
 from .base import WithFields, WithXML
 
@@ -35,9 +36,11 @@ class Animated:
         super().__init__()
         self.waypoints: list[Waypoint] = []
 
-    def add_waypoint(self, time, value, **kwargs):
+    def add_waypoint(self, time, value, *, fps: float | None = None, **kwargs):
+        """Add a waypoint. ``time`` may be seconds or a time string; frames
+        ("12f") need ``fps``."""
         w = Waypoint()
-        w.time = time
+        w.time = tosec(time, fps)
         w.value = self._type.coerce(value)
         w._assign(**kwargs)
         self.waypoints.append(w)
