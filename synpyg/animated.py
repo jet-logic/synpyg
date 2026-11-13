@@ -1,14 +1,24 @@
-from .field import FloatAttr, StringAttr, TimeAttr
+from .field import FloatAttr, StringEnumAttr, TimeAttr
 from .timeutil import tosec
 from .value import Value
 from .base import WithFields, WithXML
+
+VALID_INTERPOLATIONS = (
+    "auto",
+    "clamped",
+    "constant",
+    "ease",
+    "halt",
+    "linear",
+    "manual",
+)
 
 
 class Waypoint(WithFields, WithXML):
     value: Value  # child element, not an XML attribute, so not a Field
     time = TimeAttr(required=True)
-    before = StringAttr()
-    after = StringAttr()
+    before = StringEnumAttr(choices=VALID_INTERPOLATIONS)
+    after = StringEnumAttr(choices=VALID_INTERPOLATIONS)
     tension = FloatAttr()
     temporal_tension = FloatAttr(name="temporal-tension")
     continuity = FloatAttr()

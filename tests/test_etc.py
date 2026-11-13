@@ -1,6 +1,6 @@
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 from xml.etree import ElementTree as ET
 from synpyg.animated import Waypoint
 from synpyg.base import Property
@@ -11,17 +11,10 @@ from synpyg.value import Boolean, Color, Integer, Real, String, Vector
 
 class Test(unittest.TestCase):
     def test_value(self):
-        from synpyg.layer import SolidColorLayer
-
-        s = SolidColorLayer()
-        print(repr(s.amount))
-        print(repr(s.blend_method))
         c = Color((1.0, 1.0, 1.0, 0.0))
         self.assertEqual(repr(c), "Color((1.0, 1.0, 1.0, 0.0))")
 
     def test_dynamic_property(self):
-        from synpyg.layer import SolidColorLayer
-
         s = SolidColorLayer()
         self.assertIsInstance(s.amount, Property)
         self.assertIsInstance(s.blend_method, Property)
@@ -67,17 +60,14 @@ class Test(unittest.TestCase):
 
     def test_Waypoint(self):
         w = Waypoint()
-        # w.before
         w.time = 4
-        w.after = "qerreq"
+        w.before = "halt"
         w.temporal_tension = 0.87
         w.value = Real(1.0)
 
         self.assertSequenceEqual(
-            sorted(w.__dict__.keys()), ["after", "temporal_tension", "time", "value"]
+            sorted(w.__dict__.keys()), ["before", "temporal_tension", "time", "value"]
         )
-
-        print(ET.tostring(w.to_xml_element(ET)))
 
     def test_write(self):
         if 1:

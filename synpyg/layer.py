@@ -134,7 +134,5 @@ class GroupLayer(Layer, Grouping):
                         f"GroupLayer children must be Layer instances, got {type(child).__name__}"
                     )
                 sub_canvas.append(child.to_xml_element(et))
-            if len(sub_canvas) > 0:
-                canvas_param.append(sub_canvas)
-
+            canvas_param.append(sub_canvas)
         return element
