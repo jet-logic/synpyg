@@ -3,8 +3,7 @@ from .base import WithFields, WithXML
 from .field import FloatAttr, IntAttr, StringAttr, TimeAttr
 from .layer import Grouping, Layer
 
-from typing import Any, Optional, Sequence
-from .field import FloatAttr, IntAttr, QuadFloatAttr, StringAttr, TimeAttr
+from .field import QuadFloatAttr
 
 
 class Canvas(WithFields, WithXML, Grouping):

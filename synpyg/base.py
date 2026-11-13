@@ -1,7 +1,7 @@
-from typing import Any, Callable, ClassVar, TYPE_CHECKING, overload
+from typing import Any, ClassVar, TYPE_CHECKING, overload
 
 from .tree.linked3 import Node
-from synpyg.field import Field
+from .field import Field
 
 if TYPE_CHECKING:
     from .animated import Animated
@@ -128,7 +128,7 @@ class _Declared:
 
     _declared: ClassVar[dict[str, Any]] = {}
 
-    def set_params(self, **kwargs):
+    def _assign(self, **kwargs):
         for k, v in kwargs.items():
             if k not in self._declared:
                 raise TypeError(
@@ -138,16 +138,8 @@ class _Declared:
         return self
 
 
-from .field import Field  # field.py only imports timeutil, so no cycle
-
-
 class WithFields(_Declared):
     _fields: ClassVar[dict[str, Field]] = {}
-
-    # def __init_subclass__(cls, **kwargs):
-    #     super().__init_subclass__(**kwargs)
-    #     cls._fields = _collect(cls, Field)
-    #     cls._declared = {**cls._declared, **cls._fields}
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

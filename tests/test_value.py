@@ -1,9 +1,8 @@
 import unittest
 from xml.etree import ElementTree as ET
-
+from synpyg.layer import Layer
 from synpyg.animated import Animated
 from synpyg.base import Param
-from synpyg.layer import Layer
 from synpyg.value import Angle, Color, String, Vector
 
 
@@ -46,15 +45,15 @@ class StringAngleValueTest(unittest.TestCase):
         class L(Layer):
             label = Param(String)
 
-        l = L("x")  # type: ignore[call-arg]
-        l.label = "hello"  # type: ignore[attr-defined]
-        self.assertIsInstance(l.label.value, String)  # type: ignore[attr-defined]
+        lyr = L("x")  # type: ignore[call-arg]
+        lyr.label = "hello"  # type: ignore[attr-defined]
+        self.assertIsInstance(lyr.label.value, String)  # type: ignore[attr-defined]
         self.assertEqual(
-            l.to_xml_element(ET).find("param").find("string").get("value"),  # type: ignore[union-attr]
+            lyr.to_xml_element(ET).find("param").find("string").get("value"),  # type: ignore[union-attr]
             "hello",
         )
         with self.assertRaises(ValueError):
-            l.label = 42  # type: ignore[attr-defined]
+            lyr.label = 42  # type: ignore[attr-defined]
 
     def test_string_via_animated(self):
         a = Animated()
@@ -62,12 +61,6 @@ class StringAngleValueTest(unittest.TestCase):
         a.add_waypoint(0, "a").add_waypoint(1, String("b"))
         vals = [w.value.data for w in a.waypoints]
         self.assertEqual(vals, ["a", "b"])
-
-
-import unittest
-
-from synpyg.layer import Layer
-from synpyg.value import Color, Vector
 
 
 class ValueShapeTest(unittest.TestCase):

@@ -1,7 +1,7 @@
 from typing import Optional
 from synpyg.base import WithXML
 from synpyg.base import Base, Param
-from synpyg.base import Base, Param, WithFields, WithXML
+from synpyg.base import WithFields
 from synpyg.value import Color, Integer, Real, Time, Vector, Boolean
 from synpyg.field import BoolAttr, StringAttr
 
@@ -50,7 +50,6 @@ class Layer(WithFields, WithXML, Base):
 
 
 class SolidColorLayer(Layer):
-
     color = Param(Color)
 
     def __init__(self, desc="", **kwargs):
@@ -58,7 +57,6 @@ class SolidColorLayer(Layer):
 
 
 class CircleLayer(Layer):
-
     color = Param(Color)
     radius = Param(Real)
     feather = Param(Real)

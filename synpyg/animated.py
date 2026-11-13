@@ -26,9 +26,6 @@ class Waypoint(WithFields, WithXML):
         return element
 
 
-# can waypoint have a value node or just const value
-
-
 class Animated:
     _type: type[Value]
     interpolation: str | None = None
@@ -42,7 +39,7 @@ class Animated:
         w = Waypoint()
         w.time = time
         w.value = self._type.coerce(value)
-        w.set_params(**kwargs)
+        w._assign(**kwargs)
         self.waypoints.append(w)
         return self
 

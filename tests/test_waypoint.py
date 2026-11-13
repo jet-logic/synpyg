@@ -19,11 +19,9 @@ class TimeFormattingTest(unittest.TestCase):
             (0, "0s"),
             (1.5, "1.5s"),
             (2, "2s"),
-            ("1s", "1s"),  # was "1ss"
+            ("1s", "1s"),
             ("500ms", "0.5s"),
             ("1:30", "90s"),
-            # ("12f", "12f"),  # was "12fs"
-            # (complex(1, 12), "1s 12f"),  # was "(1+12j)s"
         ]
         for raw, want in cases:
             with self.subTest(raw=raw):
@@ -68,7 +66,7 @@ class ValueCoercionTest(unittest.TestCase):
 
 class ValuelessWaypointTest(unittest.TestCase):
     def test_serializing_without_value_raises(self):
-        w = Waypoint().set_params(before="clamped")
+        w = Waypoint()._assign(before="clamped")
         w.time = 1
         with self.assertRaisesRegex(ValueError, "no value.*time=1"):
             w.to_xml_element(ET)

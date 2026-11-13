@@ -234,31 +234,31 @@ class TestCoerce(unittest.TestCase):
 
 class TestStringEnumAttr(unittest.TestCase):
     def test_accepts_allowed_value(self):
-        class O:
+        class Some:
             status = StringEnumAttr(choices=("on", "off"))
 
-        o = O()
+        o = Some()
         o.status = "on"
         self.assertEqual(o.status, "on")
 
     def test_rejects_disallowed_value(self):
-        class O:
+        class Some:
             status = StringEnumAttr(choices=("on", "off"))
 
         with self.assertRaises(ValueError):
-            O().status = "maybe"
+            Some().status = "maybe"
 
     def test_class_access_returns_descriptor(self):
-        class O:
+        class Some:
             status = StringEnumAttr(choices=("on", "off"))
 
-        self.assertIsInstance(O.status, StringEnumAttr)
+        self.assertIsInstance(Some.status, StringEnumAttr)
 
     def test_explicit_name(self):
-        class O:
+        class Some:
             status = StringEnumAttr(choices=("on", "off"), name="state")
 
-        self.assertEqual(O.status.ctx.get("name"), "state")
+        self.assertEqual(Some.status.ctx.get("name"), "state")
 
     # def test_choices_are_copied(self):
     #     allowed = ["on", "off"]
@@ -267,59 +267,59 @@ class TestStringEnumAttr(unittest.TestCase):
     #     self.assertEqual(a.ctx.get("choices"), ("on", "off"))
 
     def test_dumps(self):
-        class O:
+        class Some:
             status = StringEnumAttr(choices=("on", "off"))
 
-        o = O()
+        o = Some()
         o.status = "off"
-        self.assertEqual(O.status.dumps(o), "off")
+        self.assertEqual(Some.status.dumps(o), "off")
 
 
 class TestQuadFloatAttr(unittest.TestCase):
-    class O:
+    class Box:
         quad = QuadFloatAttr()
 
     def test_coerces_ints_to_floats(self):
-        o = self.O()
+        o = self.Box()
         o.quad = (1, 2, 3, 4)
         self.assertEqual(o.quad, (1.0, 2.0, 3.0, 4.0))
         self.assertIsInstance(o.quad[0], float)
 
     def test_accepts_list_and_generator(self):
-        o = self.O()
+        o = self.Box()
         o.quad = [1.0, 2.0, 3.0, 4.0]
         self.assertEqual(o.quad, (1.0, 2.0, 3.0, 4.0))
         o.quad = (float(i) for i in range(4))
         self.assertEqual(o.quad, (0.0, 1.0, 2.0, 3.0))
 
     def test_rejects_wrong_length(self):
-        o = self.O()
+        o = self.Box()
         with self.assertRaises(ValueError):
             o.quad = (1.0, 2.0, 3.0)
         with self.assertRaises(ValueError):
             o.quad = (1.0, 2.0, 3.0, 4.0, 5.0)
 
     def test_rejects_non_numeric(self):
-        o = self.O()
+        o = self.Box()
         with self.assertRaises((TypeError, ValueError)):
             o.quad = (1.0, 2.0, "x", 4.0)
 
     def test_stored_as_tuple(self):
-        o = self.O()
+        o = self.Box()
         o.quad = [1, 2, 3, 4]
         self.assertIsInstance(o.quad, tuple)
 
     def test_class_access_returns_descriptor(self):
-        self.assertIsInstance(self.O.quad, QuadFloatAttr)
+        self.assertIsInstance(self.Box.quad, QuadFloatAttr)
 
     def test_dumps(self):
-        o = self.O()
+        o = self.Box()
         o.quad = (1, 2.5, 3, 4)
-        self.assertEqual(self.O.quad.dumps(o), "1 2.5 3 4")
+        self.assertEqual(self.Box.quad.dumps(o), "1 2.5 3 4")
 
     def test_missing_raises_attribute_error(self):
         with self.assertRaises(AttributeError):
-            _ = self.O().quad
+            _ = self.Box().quad
 
 
 if __name__ == "__main__":

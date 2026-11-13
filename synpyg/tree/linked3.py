@@ -36,7 +36,7 @@ class Base:
 
     def _link_next(self, node: "Base"):
         if node is self:
-            raise RuntimeError(f"same node")
+            raise RuntimeError("same node")
         elif node is None:
             self._next = None
         else:
@@ -143,9 +143,9 @@ class Node(Base):
         if next is end:
             return None
         if next is None:
-            raise RuntimeError(f"next expected")  # pragma: no cover
+            raise RuntimeError("next expected")  # pragma: no cover
         if next._parent is not self:
-            raise RuntimeError(f"unexpected parent")  # pragma: no cover
+            raise RuntimeError("unexpected parent")  # pragma: no cover
         assert not isinstance(next, End)
         return next
 

@@ -18,29 +18,15 @@ class Test(unittest.TestCase):
         c = Color((1.0, 1.0, 1.0, 0.0))
         self.assertEqual(repr(c), "Color((1.0, 1.0, 1.0, 0.0))")
 
-    # def test_property_isinstance(self):
-    #     from synpyg.layer import SolidColorLayer, CircleLayer
-
-    #     s = SolidColorLayer()
-    #     c = CircleLayer()
-    #     self.assertIsNot(s.z_depth, c.z_depth)
-    #     self.assertIsNot(s.amount.value, c.amount.value)
-
     def test_dynamic_property(self):
         from synpyg.layer import SolidColorLayer
 
         s = SolidColorLayer()
         self.assertIsInstance(s.amount, Property)
-        # assert isinstance(s.amount.value, Real)
-        # self.assertEqual(s.amount.value.data, 1.0)
         self.assertIsInstance(s.blend_method, Property)
-        # self.assertIsInstance(s.blend_method.value, Integer)
-        # assert isinstance(s.blend_method.value, Integer)
-        # self.assertIs(s.blend_method.value.data, 1)
         self.assertSequenceEqual(
             [k for k, v in s._enum_params()], ["amount", "blend_method"]
         )
-        # s.flag = Property(Integer(67))  # type: ignore
         s.flag = Integer(67).as_prop()  # type: ignore
 
         self.assertSequenceEqual(
@@ -62,7 +48,6 @@ class Test(unittest.TestCase):
         print(ET.tostring(w.to_xml_element(ET)))
 
     def test_write(self):
-
         if 1:
             out = Path(tempfile.gettempdir()) / "test.sif"
 
@@ -78,7 +63,7 @@ class Test(unittest.TestCase):
 
             sol = root.add_solid_color_layer("Background")
             self.assertEqual(sol.desc, "Background")
-            sol.set_params(color=(0.5, 1, 0, 1))
+            sol._assign(color=(0.5, 1, 0, 1))
             self.assertIsInstance(sol.color.value, Color)
 
             g = root.add_group_layer()
@@ -87,7 +72,7 @@ class Test(unittest.TestCase):
             cir.radius.set_value(1.2)
 
             mbl = g.add_motion_blur_layer("MotionBlur")
-            mbl.set_params(subsample_start=0, subsample_end=1)
+            mbl._assign(subsample_start=0, subsample_end=1)
             mbl.aperture.set_value(0.75)
             mbl.subsampling_type.set_value(3)
 

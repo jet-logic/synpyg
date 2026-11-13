@@ -91,13 +91,13 @@ class ParamDescriptorTest(unittest.TestCase):
 
     def test_set_params_unknown_raises_typeerror(self):
         with self.assertRaises(TypeError):
-            CircleLayer().set_params(radiuss=1)
+            CircleLayer()._assign(radiuss=1)
 
     def test_set_params_keeps_existing_animation(self):
         c = CircleLayer()
         anim = c.origin.as_animated()
         anim.add_waypoint(0, Vector([0, 0]))
-        c.set_params(radius=1)  # touches a different param; origin untouched
+        c._assign(radius=1)  # touches a different param; origin untouched
         self.assertIs(c.origin.value, anim)
 
     def test_as_animated_twice_returns_same_object(self):
@@ -131,10 +131,9 @@ class AttrDescriptorTest(unittest.TestCase):
 
     def test_set_params_unknown_raises_typeerror(self):
         with self.assertRaises(TypeError):
-            Waypoint().set_params(nope=1)
+            Waypoint()._assign(nope=1)
 
 
-# tests/test_params.py  (or a new test_value.py)
 class NewAnimatedTest(unittest.TestCase):
     def test_every_concrete_const_type_can_animate(self):
         from synpyg.value import (

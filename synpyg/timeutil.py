@@ -1,5 +1,6 @@
 import math
 from typing import Any
+from .numfmt import fmt_num
 
 
 def tosec(value: Any, fps: float | None = None) -> float:
@@ -37,9 +38,6 @@ def _parse(s: str, fps: float | None, original: str) -> float:
             raise ValueError(f"Invalid time {original!r}")
         return sign * sum(p * 60**i for i, p in enumerate(reversed(parts)))
     return float(s)
-
-
-from .numfmt import fmt_num
 
 
 def fmt_time(seconds: float) -> str:

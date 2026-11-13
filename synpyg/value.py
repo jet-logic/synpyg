@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Self, Union
+from typing import TYPE_CHECKING, Any, Optional, Self
 
 from synpyg.timeutil import fmt_time, tosec
 

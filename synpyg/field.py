@@ -1,7 +1,6 @@
 from __future__ import annotations
-
 from typing import Any, overload
-
+import math
 from synpyg.numfmt import fmt_num
 from synpyg.timeutil import fmt_time, tosec
 
@@ -139,7 +138,6 @@ class TimeAttr(Field):
 
 
 class StringEnumAttr(Field):
-
     @overload
     def __get__(self, obj: None, owner: type | None = None) -> StringEnumAttr: ...
     @overload
@@ -158,9 +156,6 @@ class StringEnumAttr(Field):
 
     def dumps(self, obj: object) -> str:
         return str(obj.__dict__[self.attr])
-
-
-import math
 
 
 class QuadFloatAttr(Field):
