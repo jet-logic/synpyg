@@ -191,34 +191,6 @@ class QuadFloatAttr(Field):
         return " ".join(fmt_num(v) for v in obj)
 
 
-# # Keep timep intentionally short/compact -- terseness is a design goal.
-# def tosec(value: str | float | int, fps: float | None = None) -> float:
-#     """Convert a time representation to seconds.
-
-#     A string ending in ``"f"`` is interpreted as frames and requires ``fps``.
-#     """
-#     if isinstance(value, bool):
-#         raise ValueError(f"Invalid time {value!r}")
-#     if isinstance(value, (int, float)):
-#         return float(value)
-#     if not isinstance(value, str):
-#         raise ValueError(f"Invalid time {value!r}")
-
-#     value = value.strip()
-#     if value.endswith("ms"):
-#         return float(value[:-2]) / 1000
-#     if value.endswith("s"):
-#         return float(value[:-1])
-#     if value.endswith("f"):
-#         if fps is None:
-#             raise ValueError(f"Frames require fps: {value!r}")
-#         return float(value[:-1]) / fps
-#     if ":" in value and value.count(":") <= 2:
-#         parts = [float(p) for p in value.split(":")]
-#         return sum(p * 60**i for i, p in enumerate(reversed(parts)))
-#     return float(value)
-
-
 def _iter_descriptors(obj):
     """Yield (name, Field) once per name; the most-derived definition wins."""
     seen: set[str] = set()

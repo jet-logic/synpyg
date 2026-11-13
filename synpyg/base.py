@@ -73,6 +73,8 @@ class Property(WithXML):
         return v
 
     def to_xml_element(self, et):
+        if not self.name:
+            raise ValueError("Property has no name")
         element = et.Element("param", {"name": self.name})
         if self.value is not None:
             element.append(self.value.to_xml_element(et))
@@ -153,6 +155,12 @@ class WithFields(_Declared):
         cls._declared = found
         cls._params = {k: v for k, v in found.items() if isinstance(v, Param)}
         cls._fields = {k: v for k, v in found.items() if not isinstance(v, Param)}
+
+    def __setattr__(self, key, value):
+        # Dynamic (undeclared) params: name them after the attribute they're stored under.
+        if isinstance(value, Property) and key not in self._params and not value.name:
+            value.name = key.rstrip("_")  # same rule Field.__set_name__ uses
+        super().__setattr__(key, value)
 
     def _enum_fields(self):
         """Yield (attr, Field, value) for every field that is set, in declaration order."""

@@ -5,6 +5,7 @@ from xml.etree import ElementTree as ET
 from synpyg.animated import Waypoint
 from synpyg.base import Property
 from synpyg.canvas import Canvas
+from synpyg.layer import SolidColorLayer
 from synpyg.value import Color, Integer, Real, Vector
 
 
@@ -32,6 +33,16 @@ class Test(unittest.TestCase):
         self.assertSequenceEqual(
             [k for k, v in s._enum_params()], ["amount", "blend_method", "flag"]
         )
+
+    def test_dynamic_property_name(self):
+        s = SolidColorLayer()
+        s.flag = Integer(67).as_prop()
+        el = s.to_xml_element(ET)
+        self.assertEqual(el.find("param[@name='flag']/integer").get("value"), "67")
+
+    def test_unnamed_property_rejected(self):
+        with self.assertRaises(ValueError):
+            Integer(1).as_prop().to_xml_element(ET)
 
     def test_Waypoint(self):
         w = Waypoint()
