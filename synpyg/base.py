@@ -1,6 +1,7 @@
 from typing import Any, Callable, ClassVar, TYPE_CHECKING, overload
 
 from .tree.linked3 import Node
+from synpyg.field import Field
 
 if TYPE_CHECKING:
     from .animated import Animated
@@ -83,30 +84,10 @@ class Property(WithXML):
 # ---------------------------------------------------------------------------
 
 
-class Param:
-    """
-    Declares a Synfig ``<param>`` on a class::
-
-        class CircleLayer(Layer):
-            radius = Param(Real)                  # <param name="radius">
-            from_ = Param(Real)                   # <param name="from"> (trailing "_" dropped)
-            z_depth = Param(Real, "z-depth")      # explicit name
-
-    Reading ``layer.radius`` returns that instance's :class:`Property`, creating it
-    on first access. Writing ``layer.radius = 1.2`` validates the value through
-    the param's type. ``del layer.radius`` unsets it. Properties without a value
-    are never serialized.
-    """
-
-    def __init__(self, typed: "type[Value]", name: str | None = None):
+class Param(Field):
+    def __init__(self, typed: "type[Value]", name: str | None = None, **ctx):
+        super().__init__(name=name, **ctx)
         self.typed = typed
-        self.name = name
-        self.attr = ""
-
-    def __set_name__(self, owner: type, attr: str):
-        self.attr = attr
-        if self.name is None:
-            self.name = attr.rstrip("_")
 
     @overload
     def __get__(self, obj: None, owner: type) -> "Param": ...
@@ -117,7 +98,7 @@ class Param:
             return self
         prop = obj.__dict__.get(self.attr)
         if prop is None:
-            prop = obj.__dict__[self.attr] = Property(self.typed, self.name or "")
+            prop = obj.__dict__[self.attr] = Property(self.typed, self.name)
         return prop
 
     def __set__(self, obj, value: Any):
@@ -125,6 +106,11 @@ class Param:
 
     def __delete__(self, obj):
         obj.__dict__.pop(self.attr, None)
+
+    def dumps(self, obj):
+        raise TypeError("a Param serializes as a <param> element, not an attribute")
+
+    dumpv = dumps
 
 
 def _collect(cls: type, kind: type) -> dict[str, Any]:
@@ -135,18 +121,6 @@ def _collect(cls: type, kind: type) -> dict[str, Any]:
             if isinstance(val, kind):
                 found[key] = val
     return found
-
-
-def _merge_declared(cls: type, found: dict[str, Any]) -> None:
-    """Add ``found`` to ``cls._declared``; a name can't be both a Param and a Field."""
-    for k, v in found.items():
-        old = cls._declared.get(k)  # type: ignore[attr-defined]
-        if old is not None and isinstance(old, Param) != isinstance(v, Param):
-            raise TypeError(
-                f"{cls.__name__}.{k} is declared as both a Param and a Field; "
-                f"give the Field a different Python name (name=... sets the XML name)"
-            )
-    cls._declared = {**cls._declared, **found}  # type: ignore[attr-defined]
 
 
 class _Declared:
@@ -164,41 +138,29 @@ class _Declared:
         return self
 
 
-class WithParams(_Declared):
-    """Mixin for classes declaring :class:`Param` descriptors."""
-
-    _params: ClassVar[dict[str, Param]] = {}
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        cls._params = _collect(cls, Param)
-        cls._declared = {**cls._declared, **cls._params}
-
-    def _enum_params(self):
-        """
-        Yield ``(attr, Property)`` for every property that exists on this instance:
-        declared params in declaration order, then ad-hoc ``Property`` attributes.
-        Properties without a value are included here; serialization skips them.
-        """
-        d = self.__dict__
-        for k in self._params:
-            if (p := d.get(k)) is not None:
-                yield k, p
-        for k, v in d.items():
-            if k not in self._params and isinstance(v, Property):
-                yield k, v
-
-
 from .field import Field  # field.py only imports timeutil, so no cycle
 
 
 class WithFields(_Declared):
     _fields: ClassVar[dict[str, Field]] = {}
 
+    # def __init_subclass__(cls, **kwargs):
+    #     super().__init_subclass__(**kwargs)
+    #     cls._fields = _collect(cls, Field)
+    #     cls._declared = {**cls._declared, **cls._fields}
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        cls._fields = _collect(cls, Field)
-        cls._declared = {**cls._declared, **cls._fields}
+        found = _collect(cls, Field)  # one collection pass
+        for k, v in found.items():  # kind may not change on override
+            old = cls._declared.get(k)
+            if old is not None and isinstance(old, Param) != isinstance(v, Param):
+                raise TypeError(
+                    f"{cls.__name__}.{k} changes between Param and Field; ..."
+                )
+        cls._declared = found
+        cls._params = {k: v for k, v in found.items() if isinstance(v, Param)}
+        cls._fields = {k: v for k, v in found.items() if not isinstance(v, Param)}
 
     def _enum_fields(self):
         """Yield (attr, Field, value) for every field that is set, in declaration order."""
@@ -206,6 +168,15 @@ class WithFields(_Declared):
         for k, f in self._fields.items():
             if k in d:
                 yield k, f, d[k]
+
+    def _enum_params(self):
+        d = self.__dict__
+        for k in self._params:
+            if (p := d.get(k)) is not None:
+                yield k, p
+        for k, v in d.items():
+            if k not in self._params and isinstance(v, Property):
+                yield k, v
 
     def _xml_attrs(self) -> dict[str, str]:
         d = self.__dict__

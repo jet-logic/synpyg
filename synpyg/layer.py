@@ -1,12 +1,12 @@
 from typing import Optional
 from synpyg.base import WithXML
-from synpyg.base import Base, Param, WithParams
-from synpyg.base import Base, Param, WithFields, WithParams, WithXML
+from synpyg.base import Base, Param
+from synpyg.base import Base, Param, WithFields, WithXML
 from synpyg.value import Color, Integer, Real, Time, Vector, Boolean
 from synpyg.field import BoolAttr, StringAttr
 
 
-class Layer(WithParams, WithFields, WithXML, Base):
+class Layer(WithFields, WithXML, Base):
     TAG = "layer"
 
     # XML attributes of <layer>

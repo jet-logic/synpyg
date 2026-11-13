@@ -9,10 +9,12 @@ from synpyg.timeutil import fmt_time, tosec
 class Field:
     def __init__(self, **kwargs):
         self.ctx = kwargs
+        self.attr: str = ""
+        self.name: str = kwargs.get("name") or ""
 
-    def __set_name__(self, owner: type, attr: str):
+    def __set_name__(self, owner, attr):
         self.attr = attr
-        self.name: str = self.ctx.get("name") or attr
+        self.name = self.ctx.get("name") or attr.rstrip("_")
 
     def __get__(self, obj: object | None, owner: type | None = None):
         if obj is None:
