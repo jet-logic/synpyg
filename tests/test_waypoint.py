@@ -42,7 +42,7 @@ class ValueCoercionTest(unittest.TestCase):
         a = vec_anim().add_waypoint(0, [1, 2])
         self.assertIsInstance(a.waypoints[0].value, Vector)
         x = a.to_xml_element(ET)[0].find("vector/x")
-        self.assertEqual(x.text, "1.0")  # type: ignore
+        self.assertEqual(x.text, "1")  # type: ignore
 
     def test_existing_instance_is_kept(self):
         v = Vector([3, 4])
@@ -103,7 +103,7 @@ class OrderingTest(unittest.TestCase):
             .add_waypoint(1, [9, 9])
         )
         xs = [w.find("vector/x").text for w in a.to_xml_element(ET)]  # type: ignore
-        self.assertEqual(xs, ["5.0", "0.0", "9.0"])
+        self.assertEqual(xs, ["5", "0", "9"])
 
     def test_sorting_does_not_mutate_waypoints(self):
         a = vec_anim().add_waypoint(4, [0, 0]).add_waypoint(1, [0, 0])

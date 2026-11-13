@@ -2,7 +2,6 @@ import unittest
 from xml.etree import ElementTree as ET
 
 from synpyg.canvas import Canvas
-from synpyg.layer import MotionBlurLayer
 from synpyg.value import Real, Time
 
 

@@ -33,7 +33,7 @@ class StringAngleValueTest(unittest.TestCase):
         a = Angle(90)
         self.assertEqual(a.data, 90.0)
         self.assertIsInstance(a.data, float)
-        self.assertEqual(a.to_xml_element(ET).attrib, {"value": "90.0"})
+        self.assertEqual(a.to_xml_element(ET).attrib, {"value": "90"})
 
     def test_angle_check_value(self):
         self.assertIsInstance(Angle.check_value(1.5), Angle)

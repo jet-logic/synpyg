@@ -6,7 +6,7 @@ from synpyg.animated import Waypoint
 from synpyg.base import Property
 from synpyg.canvas import Canvas
 from synpyg.layer import SolidColorLayer
-from synpyg.value import Color, Integer, Real, Vector
+from synpyg.value import Boolean, Color, Integer, Real, String, Vector
 
 
 class Test(unittest.TestCase):
@@ -43,6 +43,27 @@ class Test(unittest.TestCase):
     def test_unnamed_property_rejected(self):
         with self.assertRaises(ValueError):
             Integer(1).as_prop().to_xml_element(ET)
+
+    def test_no_exponent_or_float_noise(self):
+        self.assertEqual(Real(1e-7).to_xml_element(ET).get("value"), "0.0000001")
+        self.assertEqual(Real(0.1 + 0.2).to_xml_element(ET).get("value"), "0.3")
+        with self.assertRaises(ValueError):
+            Real(float("nan")).to_xml_element(ET)
+
+    def test_constructors_validate(self):
+        for bad in [
+            lambda: Boolean(1),
+            lambda: Integer(2.7),
+            lambda: Integer(True),
+            lambda: Real("abc"),
+            lambda: Real(float("nan")),
+            lambda: String(5),
+        ]:
+            with self.assertRaises(ValueError):
+                bad()
+        self.assertEqual(Integer(3.0).data, 3)
+        self.assertEqual(Integer("3").data, 3)
+        self.assertEqual(Real("1.5").data, 1.5)
 
     def test_Waypoint(self):
         w = Waypoint()
@@ -92,9 +113,7 @@ class Test(unittest.TestCase):
                 0, Vector([-6, 0]), before="clamped", after="clamped"
             ).add_waypoint(1, Vector([-6, 0])).add_waypoint(
                 4, Vector([6, 0]), before="clamped", after="clamped"
-            ).add_waypoint(
-                5, Vector([6, 0]), before="clamped", after="clamped"
-            )
+            ).add_waypoint(5, Vector([6, 0]), before="clamped", after="clamped")
 
             root.save_xml(out)
             self.assertTrue(out.is_file())
