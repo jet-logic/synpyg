@@ -154,5 +154,36 @@ class TestVectorColorCoerce(unittest.TestCase):
             Color.coerce("1234")
 
 
+class VectorColorInputTest(unittest.TestCase):
+    def test_vector_rejects_strings(self):
+        for value in ("12", b"12", bytearray(b"12")):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    Vector(value)
+
+                with self.assertRaises(ValueError):
+                    Vector.coerce(value)
+
+    def test_color_rejects_strings(self):
+        for value in ("1234", b"1234", bytearray(b"1234")):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    Color(value)
+
+                with self.assertRaises(ValueError):
+                    Color.coerce(value)
+
+    def test_numeric_iterables_still_work(self):
+        self.assertEqual(Vector([1, 2]).data, (1.0, 2.0))
+        self.assertEqual(Color((1, 0, 0, 1)).data, (1.0, 0.0, 0.0, 1.0))
+
+    def test_wrong_component_count_is_rejected(self):
+        with self.assertRaises(ValueError):
+            Vector([1, 2, 3])
+
+        with self.assertRaises(ValueError):
+            Color([1, 2, 3])
+
+
 if __name__ == "__main__":
     unittest.main()

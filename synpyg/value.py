@@ -173,39 +173,36 @@ class Time(Const):
         return et.Element(self.tag, {"value": fmt_time(self.data)}, **self._xml_attrs())
 
 
-class Vec(Const):
+class _Floats(Const):
     data: tuple[float, ...]
+    _length: int | None = None
 
     def __init__(self, data, **kwargs) -> None:
+        if isinstance(data, (str, bytes, bytearray)):
+            raise ValueError(f"Unexpected {type(self).__name__} {data!r}")
+
+        try:
+            data = tuple(data)
+        except TypeError:
+            raise ValueError(f"Unexpected {type(self).__name__} {data!r}") from None
+
+        if self._length is not None and len(data) != self._length:
+            raise ValueError(
+                f"{type(self).__name__} needs exactly {self._length} "
+                f"components, got {len(data)}"
+            )
+
         super().__init__(**kwargs)
-        self.data = to_float_tuple(
-            data,
-            name=type(self).__name__,
-        )
+        self.data = to_float_tuple(data, name=type(self).__name__)
 
     @classmethod
     def check_value(cls, value: Any):
-        if isinstance(value, (str, bytes, bytearray)):
-            raise ValueError(f"Unexpected {cls.__name__} {value!r}")
-
-        try:
-            iter(value)
-        except TypeError:
-            raise ValueError(f"Unexpected {cls.__name__} {value!r}") from None
-
         return cls(value)
 
 
-class Color(Vec):
+class Color(_Floats):
     tag = "color"
-
-    def __init__(self, data, **kwargs):
-        data = tuple(data)
-        if len(data) != 4:
-            raise ValueError(
-                f"Color needs exactly 4 channels (r, g, b, a), got {len(data)}"
-            )
-        super().__init__(data, **kwargs)
+    _length = 4
 
     def to_xml_element(self, et):
         element = et.Element(self.tag, self._xml_attrs())
@@ -214,16 +211,9 @@ class Color(Vec):
         return element
 
 
-class Vector(Vec):
+class Vector(_Floats):
     tag = "vector"
-
-    def __init__(self, data, **kwargs):
-        data = tuple(data)
-        if len(data) != 2:
-            raise ValueError(
-                f"Vector needs exactly 2 components (x, y), got {len(data)}"
-            )
-        super().__init__(data, **kwargs)
+    _length = 2
 
     def to_xml_element(self, et):
         element = et.Element(self.tag, self._xml_attrs())

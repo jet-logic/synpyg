@@ -175,9 +175,9 @@ class NewAnimatedTest(unittest.TestCase):
         self.assertIs(c.radius.as_animated(), a)
 
     def test_abstract_bases_still_reject(self):
-        from synpyg.value import Value, Const, Vec
+        from synpyg.value import Value, Const, _Floats
 
-        for cls in (Value, Const, Vec):
+        for cls in (Value, Const, _Floats):
             with self.subTest(cls.__name__):
                 with self.assertRaises(NotImplementedError):
                     cls.new_animated()
