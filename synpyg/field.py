@@ -114,9 +114,19 @@ class BoolAttr(Field):
 
     def __set__(self, obj: object, value: bool):
         if isinstance(value, str):
-            value = value.strip().lower() in ("1", "true", "yes", "on")
+            normalized = value.strip().lower()
+
+            if normalized in ("1", "true", "yes", "on"):
+                value = True
+            elif normalized in ("0", "false", "no", "off"):
+                value = False
+            else:
+                raise ValueError(
+                    f"{self.attr}: expected a boolean string, got {value!r}"
+                )
         else:
             value = bool(value)
+
         super().__set__(obj, value)
 
     def dumps(self, obj: object) -> str:
