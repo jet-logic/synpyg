@@ -7,7 +7,10 @@ def tosec(value: Any, fps: float | None = None) -> float:
     if isinstance(value, bool):
         raise ValueError(f"Invalid time {value!r}")
     if isinstance(value, (int, float)):
-        result = float(value)
+        try:
+            result = float(value)
+        except (ValueError, OverflowError):
+            raise ValueError(f"Invalid time {value!r}") from None
     elif isinstance(value, str):
         result = _parse(value.strip(), fps, value)
     else:

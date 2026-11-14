@@ -84,6 +84,22 @@ class FloatAttr(Field):
         return fmt_num(obj)
 
 
+class PositiveFloatAttr(FloatAttr):
+    @overload
+    def __get__(self, obj: None, owner: type | None = None) -> PositiveFloatAttr: ...
+    @overload
+    def __get__(self, obj: object, owner: type | None = None) -> float: ...
+
+    def __get__(self, obj, owner=None):
+        return super().__get__(obj, owner)
+
+    def __set__(self, obj: object, value: float):
+        value = to_float(value, name=self.attr)
+        if value <= 0:
+            raise ValueError(f"{self.attr} must be positive, got {value!r}")
+        super().__set__(obj, value)
+
+
 class IntAttr(Field):
     @overload
     def __get__(self, obj: None, owner: type | None = None) -> IntAttr: ...
@@ -101,6 +117,22 @@ class IntAttr(Field):
 
     def dumps(self, obj: object) -> str:
         return str(obj.__dict__[self.attr])
+
+
+class PositiveIntAttr(IntAttr):
+    @overload
+    def __get__(self, obj: None, owner: type | None = None) -> PositiveIntAttr: ...
+    @overload
+    def __get__(self, obj: object, owner: type | None = None) -> int: ...
+
+    def __get__(self, obj, owner=None):
+        return super().__get__(obj, owner)
+
+    def __set__(self, obj: object, value: int):
+        value = to_int(value, name=self.attr)
+        if value <= 0:
+            raise ValueError(f"{self.attr} must be positive, got {value!r}")
+        super().__set__(obj, value)
 
 
 class BoolAttr(Field):

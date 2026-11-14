@@ -6,6 +6,8 @@ from synpyg.field import (
     BoolAttr,
     FloatAttr,
     IntAttr,
+    PositiveFloatAttr,
+    PositiveIntAttr,
     QuadFloatAttr,
     StringAttr,
     StringEnumAttr,
@@ -21,7 +23,42 @@ class Example:
     label = StringAttr()
     ratio = FloatAttr()
     count = IntAttr()
+    positive_ratio = PositiveFloatAttr()
+    positive_count = PositiveIntAttr()
     enabled = BoolAttr()
+
+
+class TestPositiveAttrs(unittest.TestCase):
+    def test_positive_float_accepts_positive_values(self):
+        obj = Example()
+        obj.positive_ratio = "23.976"
+        self.assertEqual(obj.positive_ratio, 23.976)
+
+    def test_positive_float_rejects_zero_and_negative_values(self):
+        obj = Example()
+        for value in (0, -1, "-0.5"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    obj.positive_ratio = value
+
+    def test_positive_float_rejects_non_finite_values(self):
+        obj = Example()
+        for value in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    obj.positive_ratio = value
+
+    def test_positive_int_accepts_positive_values(self):
+        obj = Example()
+        obj.positive_count = "12"
+        self.assertEqual(obj.positive_count, 12)
+
+    def test_positive_int_rejects_zero_and_negative_values(self):
+        obj = Example()
+        for value in (0, -1, "-5"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    obj.positive_count = value
 
 
 class TestTimeParser(unittest.TestCase):
