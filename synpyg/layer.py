@@ -1,4 +1,3 @@
-from typing import Optional
 from synpyg.base import WithXML
 from synpyg.base import Base, Param
 from synpyg.base import WithFields
@@ -104,16 +103,44 @@ class Grouping(Base):
         self.insert_before(before, layer)
         return layer
 
+    def add_external_canvas_layer(
+        self, use: str, *args, before: Base | None = None, **kwargs
+    ):
+        layer = ExternalCanvasLayer(use, *args, **kwargs)
+        self.insert_before(before, layer)
+        return layer
+
 
 class GroupLayer(Layer, Grouping):
-    """
-    A Synfig Group layer that can either contain inline child layers
-    or reference an external/exported canvas via the 'use' attribute.
-    """
-
     origin = Param(Vector)
 
-    def __init__(self, desc="", use: Optional[str] = None, **kwargs):
+    def __init__(self, desc="", **kwargs):
+        super().__init__("group", version="0.1", desc=desc, **kwargs)
+
+    def to_xml_element(self, et):
+        element = super().to_xml_element(et)
+
+        canvas_param = et.SubElement(element, "param", {"name": "canvas"})
+        sub_canvas = et.SubElement(canvas_param, "canvas")
+
+        for child in self:
+            if not isinstance(child, Layer):
+                raise TypeError(
+                    f"GroupLayer children must be Layer instances, "
+                    f"got {type(child).__name__}"
+                )
+            sub_canvas.append(child.to_xml_element(et))
+
+        return element
+
+
+class ExternalCanvasLayer(Layer):
+    origin = Param(Vector)
+
+    def __init__(self, use: str, desc="", **kwargs):
+        if not isinstance(use, str) or not use:
+            raise ValueError("External canvas reference must be a non-empty string")
+
         super().__init__("group", version="0.1", desc=desc, **kwargs)
         self.use = use
 
@@ -121,18 +148,6 @@ class GroupLayer(Layer, Grouping):
         element = super().to_xml_element(et)
 
         canvas_param = et.SubElement(element, "param", {"name": "canvas"})
+        et.SubElement(canvas_param, "canvas", {"use": self.use})
 
-        if self.use:
-            # If using a reference, set the 'use' attribute on the canvas element
-            et.SubElement(canvas_param, "canvas", {"use": self.use})
-        else:
-            # Otherwise, serialize inline child layers as before
-            sub_canvas = et.Element("canvas")
-            for child in self:
-                if not isinstance(child, Layer):
-                    raise TypeError(
-                        f"GroupLayer children must be Layer instances, got {type(child).__name__}"
-                    )
-                sub_canvas.append(child.to_xml_element(et))
-            canvas_param.append(sub_canvas)
         return element
