@@ -2,7 +2,7 @@ import unittest
 from xml.etree import ElementTree as ET
 
 from synpyg.animated import Animated, Waypoint
-from synpyg.base import Param
+from synpyg.base import Param, Property
 from synpyg.layer import CircleLayer, GroupLayer, Layer, MotionBlurLayer
 from synpyg.value import Real, Vector
 
@@ -218,6 +218,40 @@ class PropertyAnimatedTest(unittest.TestCase):
 
         self.assertIs(first, second)
         self.assertEqual(len(second.waypoints), 1)
+
+
+class PropertyConstructorTest(unittest.TestCase):
+    def test_initial_value_is_coerced(self):
+        prop = Property(Real, value="1.5")
+
+        self.assertIsInstance(prop.value, Real)
+        self.assertEqual(prop.value.data, 1.5)
+
+    def test_invalid_initial_value_is_rejected(self):
+        with self.assertRaises(ValueError):
+            Property(Real, value="not a number")
+
+    def test_wrong_value_type_is_rejected(self):
+        with self.assertRaises(ValueError):
+            Property(Real, value=Vector([1, 2]))
+
+    def test_animated_initial_value_is_accepted(self):
+        anim = Animated(Real).add_waypoint(0, 1.5)
+        prop = Property(Real, value=anim)
+
+        self.assertIs(prop.value, anim)
+
+    def test_wrong_animated_type_is_rejected(self):
+        anim = Animated(Vector).add_waypoint(0, [1, 2])
+
+        with self.assertRaises(ValueError):
+            Property(Real, value=anim)
+
+    def test_none_means_unset(self):
+        prop = Property(Real)
+
+        self.assertIsNone(prop.value)
+        self.assertFalse(prop.has_value)
 
 
 if __name__ == "__main__":

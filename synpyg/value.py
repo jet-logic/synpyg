@@ -53,7 +53,7 @@ class Value(WithFields, WithXML):
         from .base import Property
 
         p = Property(self.__class__)
-        p.value = self
+        p.set_value(self)
         p.name = name
         return p
 

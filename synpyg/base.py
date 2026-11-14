@@ -27,10 +27,7 @@ class Property(WithXML):
     value: "Value | Animated | None" = None
 
     def __init__(
-        self,
-        kind: "type[Value] | None" = None,
-        name: str = "",
-        value: "Value | Animated | None" = None,
+        self, kind: "type[Value] | None" = None, name: str = "", value: Any = None
     ):
         super().__init__()
 
@@ -41,7 +38,10 @@ class Property(WithXML):
 
         self._kind = kind
         self.name = name
-        self.value = value
+        self.value = None
+
+        if value is not None:
+            self.set_value(value)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.value!r})"
