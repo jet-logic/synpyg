@@ -43,7 +43,7 @@ class Animated(WithFields):
 
     id = StringAttr()
     guid = StringAttr()
-    interpolation = StringAttr()
+    interpolation = StringEnumAttr(choices=VALID_INTERPOLATIONS)
 
     def __init__(
         self,
