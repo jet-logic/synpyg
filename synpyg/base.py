@@ -63,14 +63,20 @@ class Property(WithXML):
         else:
             self.value = self.typed.coerce(value)  # type: ignore[union-attr]
 
-    def as_animated(self):
+    def as_animated(self, *, preserve: bool = True):
         from .animated import Animated
 
         if isinstance(self.value, Animated):
             return self.value
-        # TODO: preserve existing constant as a waypoint at 0:
-        v = self.value = self.typed.new_animated()  # type: ignore[union-attr]
-        return v
+
+        old_value = self.value
+        animated = self.typed.new_animated()  # type: ignore[union-attr]
+
+        if preserve and old_value is not None:
+            animated.add_waypoint(0, old_value)
+
+        self.value = animated
+        return animated
 
     def to_xml_element(self, et):
         if not self.name:

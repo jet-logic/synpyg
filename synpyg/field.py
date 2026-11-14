@@ -51,7 +51,9 @@ class StringAttr(Field):
         return super().__get__(obj, owner)
 
     def __set__(self, obj: object, value: str):
-        super().__set__(obj, str(value))
+        if not isinstance(value, str):
+            raise TypeError(f"{self.attr} must be a string, got {type(value).__name__}")
+        super().__set__(obj, value)
 
     def dumps(self, obj: object) -> str:
         return str(obj.__dict__[self.attr])

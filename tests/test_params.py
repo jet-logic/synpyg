@@ -183,5 +183,42 @@ class NewAnimatedTest(unittest.TestCase):
                     cls.new_animated()
 
 
+class PropertyAnimatedTest(unittest.TestCase):
+    def test_as_animated_preserves_value_by_default(self):
+        c = CircleLayer()
+        c.origin = [3, 4]
+
+        anim = c.origin.as_animated()
+
+        self.assertEqual(len(anim.waypoints), 1)
+        self.assertEqual(anim.waypoints[0].time, 0)
+        self.assertEqual(anim.waypoints[0].value.data, (3.0, 4.0))
+
+    def test_as_animated_without_preserving_value(self):
+        c = CircleLayer()
+        c.origin = [3, 4]
+
+        anim = c.origin.as_animated(preserve=False)
+
+        self.assertEqual(len(anim.waypoints), 0)
+
+    def test_as_animated_without_existing_value(self):
+        c = CircleLayer()
+
+        anim = c.origin.as_animated()
+
+        self.assertEqual(len(anim.waypoints), 0)
+
+    def test_as_animated_twice_returns_same_animation(self):
+        c = CircleLayer()
+        c.origin = [3, 4]
+
+        first = c.origin.as_animated()
+        second = c.origin.as_animated(preserve=False)
+
+        self.assertIs(first, second)
+        self.assertEqual(len(second.waypoints), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
