@@ -39,7 +39,7 @@ class Waypoint(WithFields, WithXML):
 
 
 class Animated(WithFields):
-    _type: type[Value]
+    _kind: type[Value]
 
     id = StringAttr()
     guid = StringAttr()
@@ -60,7 +60,7 @@ class Animated(WithFields):
                 f"{value_type.__name__} has no tag and cannot be animated"
             )
 
-        self._type = value_type
+        self._kind = value_type
         self.waypoints = []
 
         if id is not None:
@@ -71,7 +71,7 @@ class Animated(WithFields):
             self.interpolation = interpolation
 
     def to_xml_element(self, et):
-        attrs = {"type": self._type.tag, **self._xml_attrs()}
+        attrs = {"type": self._kind.tag, **self._xml_attrs()}
         element = et.Element("animated", attrs)
 
         for child in self._ordered_waypoints():
@@ -84,7 +84,7 @@ class Animated(WithFields):
         ("12f") need ``fps``."""
         w = Waypoint()
         w.time = tosec(time, fps)
-        w.value = self._type.coerce(value)
+        w.value = self._kind.coerce(value)
         w._assign(**kwargs)
         self.waypoints.append(w)
         return self

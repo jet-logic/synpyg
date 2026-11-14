@@ -1,29 +1,35 @@
 from typing import TYPE_CHECKING, Any, Optional, Self
+from synpyg.field import StringAttr
 from synpyg.numeric import to_float, to_float_tuple, to_int
 from synpyg.numfmt import fmt_num
 from synpyg.timeutil import fmt_time, tosec
 
 
-from .base import WithXML
+from .base import WithFields, WithXML
 
 if TYPE_CHECKING:
     from .animated import Animated
 
 
-class Value(WithXML):
-    # Synfig value
+class Value(WithFields, WithXML):
     tag = ""
-    id: Optional[str]
-    guid: Optional[str]
+
+    id = StringAttr()
+    guid = StringAttr()
+
     data: Any
 
-    # loop?
-    # static?
-    # interpolation?
-    def __init__(self, id: Optional[str] = None, guid: Optional[str] = None) -> None:
-        """Initialize optional Synfig value identifiers."""
-        self.id = id
-        self.guid = guid
+    def __init__(
+        self,
+        id: Optional[str] = None,
+        guid: Optional[str] = None,
+    ) -> None:
+        super().__init__()
+
+        if id is not None:
+            self.id = id
+        if guid is not None:
+            self.guid = guid
 
     @classmethod
     def check_value(cls, value: Any) -> Self:
@@ -46,22 +52,23 @@ class Value(WithXML):
     def as_prop(self, name=""):
         from .base import Property
 
-        p = Property()
+        p = Property(self.__class__)
         p.value = self
         p.name = name
-        p.typed = self.__class__
         return p
 
     def _xml_attrs(self):
-        return {"guid": self.guid} if self.guid is not None else {}
+        return {"guid": guid} if (guid := self.__dict__.get("guid")) else {}
 
     def __repr__(self) -> str:
-        extras = ""
-        if self.id is not None:
-            extras += f", id={self.id!r}"
-        if self.guid is not None:
-            extras += f", guid={self.guid!r}"
-        return f"{self.__class__.__name__}({self.__dict__.get('data')!r}{extras})"
+        args = [repr(self.__dict__.get("data"))]
+
+        if v := self.__dict__.get("id"):
+            args.append(f"id={v!r}")
+        if v := self.__dict__.get("guid"):
+            args.append(f"guid={v!r}")
+
+        return f"{type(self).__name__}({', '.join(args)})"
 
 
 class Const(Value):

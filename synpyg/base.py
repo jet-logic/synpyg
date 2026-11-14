@@ -28,18 +28,18 @@ class Property(WithXML):
 
     def __init__(
         self,
-        typed: "type[Value] | None" = None,
+        kind: "type[Value] | None" = None,
         name: str = "",
         value: "Value | Animated | None" = None,
     ):
         super().__init__()
 
-        if typed is None:
+        if kind is None:
             from .value import String
 
-            typed = String
+            kind = String
 
-        self.typed = typed
+        self._kind = kind
         self.name = name
         self.value = value
 
@@ -54,19 +54,13 @@ class Property(WithXML):
         from .animated import Animated
 
         if isinstance(value, Animated):
-            if self.typed is not None and value._type is not self.typed:
+            if self._kind is not None and value._kind is not self._kind:
                 raise ValueError(
-                    f"Animated type {value._type.__name__} does not match param type {self.typed.__name__}"
+                    f"Animated type {value._kind.__name__} does not match param type {self._kind.__name__}"
                 )
             self.value = value
-        # if isinstance(value, Animated) or (
-        #     self.typed is not None and isinstance(value, self.typed)
-        # ):
-        #     self.value = value
-        # elif type(value) is self.typed:
-        #     self.value = value
         else:
-            self.value = self.typed.coerce(value)  # type: ignore[union-attr]
+            self.value = self._kind.coerce(value)  # type: ignore[union-attr]
 
     def as_animated(self, *, preserve: bool = True):
         from .animated import Animated
@@ -75,7 +69,7 @@ class Property(WithXML):
             return self.value
 
         old_value = self.value
-        animated = self.typed.new_animated()  # type: ignore[union-attr]
+        animated = self._kind.new_animated()  # type: ignore[union-attr]
 
         if preserve and old_value is not None:
             animated.add_waypoint(0, old_value)

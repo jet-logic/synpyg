@@ -160,7 +160,7 @@ class NewAnimatedTest(unittest.TestCase):
             with self.subTest(cls.__name__):
                 a = cls.new_animated()
                 self.assertIsInstance(a, Animated)
-                self.assertIs(a._type, cls)
+                self.assertIs(a._kind, cls)
                 a.add_waypoint(0, sample)
                 el = a.to_xml_element(ET)
                 self.assertEqual(el.get("type"), cls.tag)
@@ -170,7 +170,7 @@ class NewAnimatedTest(unittest.TestCase):
         c.radius = 1.0
         a = c.radius.as_animated()
         self.assertIsInstance(a, Animated)
-        self.assertIs(a._type, Real)
+        self.assertIs(a._kind, Real)
         # second call returns the same Animated, not a new one
         self.assertIs(c.radius.as_animated(), a)
 
