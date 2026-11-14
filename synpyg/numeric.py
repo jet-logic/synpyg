@@ -21,18 +21,22 @@ def to_int(value: Any, *, name: str = "value") -> int:
     if isinstance(value, bool):
         raise ValueError(f"{name} must be an integer, got {value!r}")
 
-    if not isinstance(value, (int, float, str)):
-        raise ValueError(f"{name} must be an integer, got {value!r}")
+    # Preserve Python integers exactly. Never round-trip them through float.
+    if isinstance(value, int):
+        return value
 
-    try:
-        number = float(value)
-    except (ValueError, OverflowError):
-        raise ValueError(f"{name} must be an integer, got {value!r}") from None
+    if isinstance(value, float):
+        if not math.isfinite(value) or not value.is_integer():
+            raise ValueError(f"{name} must be an integer, got {value!r}")
+        return int(value)
 
-    if not math.isfinite(number) or not number.is_integer():
-        raise ValueError(f"{name} must be an integer, got {value!r}")
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            raise ValueError(f"{name} must be an integer, got {value!r}") from None
 
-    return int(number)
+    raise ValueError(f"{name} must be an integer, got {value!r}")
 
 
 def to_float_tuple(

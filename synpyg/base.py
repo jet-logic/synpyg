@@ -22,7 +22,6 @@ class Property(WithXML):
     A Synfig param
     """
 
-    typed: "type[Value] | None"
     name: str
     # None means "not set": such a property is skipped when serializing.
     value: "Value | Animated | None" = None
@@ -34,6 +33,12 @@ class Property(WithXML):
         value: "Value | Animated | None" = None,
     ):
         super().__init__()
+
+        if typed is None:
+            from .value import String
+
+            typed = String
+
         self.typed = typed
         self.name = name
         self.value = value

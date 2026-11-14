@@ -32,6 +32,7 @@ def _parse(s: str, fps: float | None, original: str) -> float:
             raise ValueError("fps must be finite and positive")
         return n / fps
     if ":" in s:
+        # 1:90 ->150 seconds (Ok, and practical)
         sign = -1.0 if s.startswith("-") else 1.0
         parts = [float(p) for p in s.lstrip("+-").split(":")]
         if len(parts) > 3:
