@@ -40,12 +40,27 @@ class Waypoint(WithFields, WithXML):
 
 class Animated(WithFields):
     _type: type[Value]
+
     id = StringAttr()
     guid = StringAttr()
     interpolation = StringAttr()
 
-    def __init__(self, *, id=None, guid=None, interpolation=None):
+    def __init__(
+        self,
+        value_type: type[Value],
+        *,
+        id=None,
+        guid=None,
+        interpolation=None,
+    ):
         super().__init__()
+
+        if not value_type.tag:
+            raise NotImplementedError(
+                f"{value_type.__name__} has no tag and cannot be animated"
+            )
+
+        self._type = value_type
         self.waypoints = []
 
         if id is not None:

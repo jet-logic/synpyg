@@ -58,8 +58,7 @@ class ValueCoercionTest(unittest.TestCase):
             vec_anim().add_waypoint(0, "nope")
 
     def test_other_value_types(self):
-        a = Animated()
-        a._type = Real
+        a = Animated(Real)
         a.add_waypoint(0, 2).add_waypoint(1, Real(3.5))
         self.assertEqual([w.value.data for w in a.waypoints], [2.0, 3.5])
 

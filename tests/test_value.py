@@ -59,8 +59,7 @@ class StringAngleValueTest(unittest.TestCase):
             lyr.label = 42  # type: ignore[attr-defined]
 
     def test_string_via_animated(self):
-        a = Animated()
-        a._type = String
+        a = Animated(String)
         a.add_waypoint(0, "a").add_waypoint(1, String("b"))
         vals = [w.value.data for w in a.waypoints]
         self.assertEqual(vals, ["a", "b"])

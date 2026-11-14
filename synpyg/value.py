@@ -41,15 +41,7 @@ class Value(WithXML):
         """Create an :class:`Animated` value node that produces values of ``cls``."""
         from .animated import Animated
 
-        if not cls.tag:
-            # A non-serializable base class (Value, Const, Vec) — don't hand out
-            # an Animated that would fail on ``self._type.tag`` at save time.
-            raise NotImplementedError(
-                f"{cls.__name__} has no tag and cannot be animated"
-            )
-        a = Animated()
-        a._type = cls
-        return a
+        return Animated(cls)
 
     def as_prop(self, name=""):
         from .base import Property
