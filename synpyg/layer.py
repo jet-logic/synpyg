@@ -1,8 +1,6 @@
-from synpyg.base import WithXML
-from synpyg.base import Base, Param
-from synpyg.base import WithFields
-from synpyg.value import Color, Integer, Real, Time, Vector, Boolean
-from synpyg.field import BoolAttr, StringAttr
+from .base import Base, Param, WithXML, WithFields
+from .value import Color, Integer, Real, Time, Vector, Boolean
+from .field import BoolAttr, StringAttr
 
 
 class Layer(WithFields, WithXML, Base):

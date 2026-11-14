@@ -2,7 +2,6 @@ from typing import Any
 from .base import WithFields, WithXML
 from .field import PositiveFloatAttr, PositiveIntAttr, StringAttr, TimeAttr
 from .layer import Grouping, Layer
-
 from .field import QuadFloatAttr
 
 

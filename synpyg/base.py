@@ -1,5 +1,4 @@
 from typing import Any, ClassVar, TYPE_CHECKING, overload
-
 from .tree.linked3 import Node
 from .field import Field, iter_descriptors
 

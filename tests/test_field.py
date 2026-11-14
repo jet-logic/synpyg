@@ -2,7 +2,6 @@ import unittest
 
 from synpyg.base import WithFields
 from synpyg.field import (
-    Field,
     BoolAttr,
     FloatAttr,
     IntAttr,
@@ -135,42 +134,6 @@ class TestTimeAttr(unittest.TestCase):
         second.when = "2s"
         self.assertEqual(first.when, 1.0)
         self.assertEqual(second.when, 2.0)
-
-    def test_string_dumps(self):
-        obj = Example()
-        obj.label = "hello"
-        self.assertEqual(Example.label.dumps(obj), "hello")
-
-    def test_float_dumps(self):
-        obj = Example()
-        obj.ratio = 0.875
-        self.assertEqual(Example.ratio.dumps(obj), "0.875")
-
-    def test_int_dumps(self):
-        obj = Example()
-        obj.count = 42
-        self.assertEqual(Example.count.dumps(obj), "42")
-
-    def test_bool_dumps(self):
-        obj = Example()
-        obj.enabled = True
-        self.assertEqual(Example.enabled.dumps(obj), "true")
-        obj.enabled = False
-        self.assertEqual(Example.enabled.dumps(obj), "false")
-
-    def test_dumps_serializes_seconds_with_unit_suffix(self):
-        obj = Example()
-        obj.when = "1:02:03"
-        self.assertEqual(Example.when.dumps(obj), "3723s")
-
-    def test_dumps_serializes_numeric_assignment(self):
-        obj = Example()
-        obj.when = 0.25
-        self.assertEqual(Example.when.dumps(obj), "0.25s")
-
-    def test_base_dumps_is_not_implemented(self):
-        with self.assertRaisesRegex(NotImplementedError, "Field"):
-            Field().dumps(Example())
 
 
 class BaseAttrs:
@@ -332,20 +295,6 @@ class TestStringEnumAttr(unittest.TestCase):
 
         self.assertEqual(Some.status.ctx.get("name"), "state")
 
-    # def test_choices_are_copied(self):
-    #     allowed = ["on", "off"]
-    #     a = StringEnumAttr(choices=allowed)
-    #     allowed.append("maybe")
-    #     self.assertEqual(a.ctx.get("choices"), ("on", "off"))
-
-    def test_dumps(self):
-        class Some:
-            status = StringEnumAttr(choices=("on", "off"))
-
-        o = Some()
-        o.status = "off"
-        self.assertEqual(Some.status.dumps(o), "off")
-
 
 class TestQuadFloatAttr(unittest.TestCase):
     class View:
@@ -384,10 +333,10 @@ class TestQuadFloatAttr(unittest.TestCase):
     def test_class_access_returns_descriptor(self):
         self.assertIsInstance(self.View.box, QuadFloatAttr)
 
-    def test_dumps(self):
+    def test_dumpv(self):
         o = self.View()
-        o.box = (1, 2.5, 3, 4)
-        self.assertEqual(self.View.box.dumps(o), "1 2.5 3 4")
+        o.box = (1, 2, 3, 4)
+        self.assertEqual(self.View.box.dumpv((1, 2.5, 3, 4)), "1 2.5 3 4")
 
     def test_missing_raises_attribute_error(self):
         with self.assertRaises(AttributeError):

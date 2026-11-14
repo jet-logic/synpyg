@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Any, Optional, Self
-from synpyg.field import StringAttr
-from synpyg.numeric import to_float, to_float_tuple, to_int
-from synpyg.numfmt import fmt_num
-from synpyg.timeutil import fmt_time, tosec
+from .field import StringAttr
+from .numeric import to_float, to_float_tuple, to_int
+from .numfmt import fmt_num
+from .timeutil import fmt_time, tosec
 
 
 from .base import WithFields, WithXML

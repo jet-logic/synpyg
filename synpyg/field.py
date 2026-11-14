@@ -1,8 +1,8 @@
 from __future__ import annotations
 from typing import Any, overload
-from synpyg.numfmt import fmt_num
-from synpyg.timeutil import fmt_time, tosec
-from synpyg.numeric import to_float, to_int, to_float_tuple
+from .numfmt import fmt_num
+from .timeutil import fmt_time, tosec
+from .numeric import to_float, to_int, to_float_tuple
 
 
 class Field:
@@ -28,9 +28,6 @@ class Field:
     def __set__(self, obj: object, value: Any):
         obj.__dict__[self.attr] = value
 
-    def dumps(self, obj: object) -> str:
-        raise NotImplementedError(f"{type(self).__name__}.dumps(...)")
-
     def __delete__(self, obj: object):
         try:
             del obj.__dict__[self.attr]
@@ -55,9 +52,6 @@ class StringAttr(Field):
             raise TypeError(f"{self.attr} must be a string, got {type(value).__name__}")
         super().__set__(obj, value)
 
-    def dumps(self, obj: object) -> str:
-        return str(obj.__dict__[self.attr])
-
     def dumpv(self, obj: object) -> str:
         return str(obj)
 
@@ -76,9 +70,6 @@ class FloatAttr(Field):
             obj,
             to_float(value, name=self.attr),
         )
-
-    def dumps(self, obj):
-        return self.dumpv(obj.__dict__[self.attr])
 
     def dumpv(self, obj: Any):
         return fmt_num(obj)
@@ -114,9 +105,6 @@ class IntAttr(Field):
             obj,
             to_int(value, name=self.attr),
         )
-
-    def dumps(self, obj: object) -> str:
-        return str(obj.__dict__[self.attr])
 
 
 class PositiveIntAttr(IntAttr):
@@ -161,9 +149,6 @@ class BoolAttr(Field):
 
         super().__set__(obj, value)
 
-    def dumps(self, obj: object) -> str:
-        return "true" if obj.__dict__[self.attr] else "false"
-
     def dumpv(self, obj: object) -> str:
         return "true" if obj else "false"
 
@@ -184,9 +169,6 @@ class TimeAttr(Field):
         fps_attr = self.ctx.get("fps_attr")
         fps = getattr(obj, fps_attr, None) if fps_attr else None
         super().__set__(obj, tosec(value, fps))
-
-    def dumps(self, obj):
-        return fmt_time(obj.__dict__[self.attr])
 
     def dumpv(self, obj):
         return fmt_time(obj)  # type: ignore
@@ -209,9 +191,6 @@ class StringEnumAttr(Field):
             raise ValueError(f"{self.attr}: expected one of {choices!r}, got {value!r}")
         super().__set__(obj, value)
 
-    def dumps(self, obj: object) -> str:
-        return str(obj.__dict__[self.attr])
-
 
 class QuadFloatAttr(Field):
     @overload
@@ -230,9 +209,6 @@ class QuadFloatAttr(Field):
 
         quad = to_float_tuple(value, name=self.attr, length=4)
         super().__set__(obj, quad)
-
-    def dumps(self, obj):
-        return self.dumpv(obj.__dict__[self.attr])
 
     def dumpv(self, obj: Any):
         return " ".join(fmt_num(v) for v in obj)
