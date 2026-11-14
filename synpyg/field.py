@@ -124,8 +124,8 @@ class BoolAttr(Field):
                 raise ValueError(
                     f"{self.attr}: expected a boolean string, got {value!r}"
                 )
-        else:
-            value = bool(value)
+        elif not isinstance(value, bool):
+            raise ValueError(f"{self.attr}: expected bool, got {type(value).__name__}")
 
         super().__set__(obj, value)
 

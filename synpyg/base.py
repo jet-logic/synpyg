@@ -126,16 +126,6 @@ class Param(Field):
     dumpv = dumps
 
 
-# def _collect(cls: type, kind: type) -> dict[str, Any]:
-#     """Descriptors of ``kind`` on ``cls`` and its bases: parents first, in declaration order."""
-#     found: dict[str, Any] = {}
-#     for klass in reversed(cls.__mro__):
-#         for key, val in vars(klass).items():
-#             if isinstance(val, kind):
-#                 found[key] = val
-#     return found
-
-
 class _Declared:
     """Shared ``set_params`` for classes that declare descriptors of one kind."""
 
