@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING, Any, Optional, Self
-import math
+from synpyg.numeric import to_float, to_float_tuple, to_int
 from synpyg.numfmt import fmt_num
 from synpyg.timeutil import fmt_time, tosec
 
@@ -60,6 +60,9 @@ class Value(WithXML):
         p.typed = self.__class__
         return p
 
+    def _xml_attrs(self):
+        return {"guid": self.guid} if self.guid is not None else {}
+
     def __repr__(self) -> str:
         extras = ""
         if self.id is not None:
@@ -78,14 +81,14 @@ class Real(Const):
 
     def __init__(self, data: float, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.data = _to_float(type(self), data)
+        self.data = to_float(data, name=type(self).__name__)
 
     @classmethod
     def check_value(cls, value: Any) -> Self:
         return cls(value)
 
     def to_xml_element(self, et):
-        return et.Element("real", {"value": fmt_num(self.data)})
+        return et.Element(self.tag, {"value": fmt_num(self.data), **self._xml_attrs()})
 
 
 class Integer(Const):
@@ -93,14 +96,14 @@ class Integer(Const):
 
     def __init__(self, data: int, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.data = _to_int(type(self), data)
+        self.data = to_int(data, name=type(self).__name__)
 
     @classmethod
     def check_value(cls, value: Any) -> Self:
         return cls(value)
 
     def to_xml_element(self, et):
-        return et.Element("integer", {"value": str(self.data)})
+        return et.Element(self.tag, {"value": str(self.data)}, **self._xml_attrs())
 
 
 class Boolean(Const):
@@ -117,7 +120,9 @@ class Boolean(Const):
         return cls(value)
 
     def to_xml_element(self, et):
-        return et.Element("bool", {"value": "true" if self.data else "false"})
+        return et.Element(
+            self.tag, {"value": "true" if self.data else "false"}, **self._xml_attrs()
+        )
 
 
 class String(Const):
@@ -134,7 +139,7 @@ class String(Const):
         return cls(value)
 
     def to_xml_element(self, et):
-        return et.Element("string", {"value": self.data})
+        return et.Element(self.tag, {"value": self.data}, **self._xml_attrs())
 
 
 class Angle(Const):
@@ -142,14 +147,14 @@ class Angle(Const):
 
     def __init__(self, data: float, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.data = _to_float(type(self), data)
+        self.data = to_float(data, name=type(self).__name__)
 
     @classmethod
     def check_value(cls, value: Any) -> Self:
         return cls(value)
 
     def to_xml_element(self, et):
-        return et.Element("angle", {"value": fmt_num(self.data)})
+        return et.Element(self.tag, {"value": fmt_num(self.data)}, **self._xml_attrs())
 
 
 class Time(Const):
@@ -166,21 +171,30 @@ class Time(Const):
         return cls(value)
 
     def to_xml_element(self, et):
-        return et.Element("time", {"value": fmt_time(self.data)})
+        return et.Element(self.tag, {"value": fmt_time(self.data)}, **self._xml_attrs())
 
 
 class Vec(Const):
     data: tuple[float, ...]
 
-    def __init__(self, data: tuple[float, ...] | list[float], **kwargs) -> None:
+    def __init__(self, data, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.data = tuple(float(x) for x in data)
+        self.data = to_float_tuple(
+            data,
+            name=type(self).__name__,
+        )
 
     @classmethod
     def check_value(cls, value: Any):
-        if isinstance(value, (list, tuple)):
-            return cls(value)
-        raise ValueError(f"Unexpected {cls.__name__} {value!r}")
+        if isinstance(value, (str, bytes, bytearray)):
+            raise ValueError(f"Unexpected {cls.__name__} {value!r}")
+
+        try:
+            iter(value)
+        except TypeError:
+            raise ValueError(f"Unexpected {cls.__name__} {value!r}") from None
+
+        return cls(value)
 
 
 class Color(Vec):
@@ -195,7 +209,7 @@ class Color(Vec):
         super().__init__(data, **kwargs)
 
     def to_xml_element(self, et):
-        element = et.Element("color")
+        element = et.Element(self.tag, self._xml_attrs())
         for channel, n in zip(("r", "g", "b", "a"), self.data):
             et.SubElement(element, channel).text = fmt_num(n)
         return element
@@ -213,36 +227,7 @@ class Vector(Vec):
         super().__init__(data, **kwargs)
 
     def to_xml_element(self, et):
-        element = et.Element("vector")
+        element = et.Element(self.tag, self._xml_attrs())
         for s, n in zip(("x", "y"), self.data):
             et.SubElement(element, s).text = fmt_num(n)
         return element
-
-
-def _to_float(cls: type, value: Any) -> float:
-    """Finite float from an int, float or numeric string. Rejects bool, nan and inf."""
-    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
-        raise ValueError(f"Unexpected {cls.__name__} value: {value!r}")
-    try:
-        result = float(value)
-    except (ValueError, OverflowError):
-        raise ValueError(f"Unexpected {cls.__name__} value: {value!r}") from None
-    if not math.isfinite(result):
-        raise ValueError(f"{cls.__name__} must be finite, got {value!r}")
-    return result
-
-
-def _to_int(cls: type, value: Any) -> int:
-    """int from an int, an integral float, or an integer string. Rejects bool and 2.7."""
-    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
-        raise ValueError(f"Unexpected {cls.__name__} value: {value!r}")
-    if isinstance(value, str):
-        try:
-            return int(value.strip())
-        except ValueError:
-            raise ValueError(f"Unexpected {cls.__name__} value: {value!r}") from None
-    if isinstance(value, float):
-        if not math.isfinite(value) or value != int(value):
-            raise ValueError(f"{cls.__name__} needs a whole number, got {value!r}")
-        return int(value)
-    return value

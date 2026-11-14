@@ -1,9 +1,12 @@
+import math
 import unittest
 from xml.etree import ElementTree as ET
 from synpyg.layer import Layer
 from synpyg.animated import Animated
 from synpyg.base import Param
 from synpyg.value import Angle, Color, String, Vector
+from synpyg.numeric import to_float, to_int
+from synpyg.field import QuadFloatAttr
 
 
 class StringAngleValueTest(unittest.TestCase):
@@ -79,6 +82,77 @@ class ValueShapeTest(unittest.TestCase):
     def test_color_accepts_list_and_tuple(self):
         self.assertEqual(Color([1, 2, 3, 4]).data, (1.0, 2.0, 3.0, 4.0))
         self.assertEqual(Color((1, 2, 3, 4)).data, (1.0, 2.0, 3.0, 4.0))
+
+
+class NumericConversionTests(unittest.TestCase):
+    def test_float_conversion(self):
+        self.assertEqual(to_float(2), 2.0)
+        self.assertEqual(to_float("2.5"), 2.5)
+
+    def test_integer_conversion(self):
+        self.assertEqual(to_int(2.0), 2)
+        self.assertEqual(to_int("2"), 2)
+        self.assertEqual(to_int("2.0"), 2)
+
+    def test_integer_rejects_fractional_values(self):
+        for value in (2.5, "2.5"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    to_int(value)
+
+    def test_rejects_booleans(self):
+        for converter in (to_float, to_int):
+            with self.subTest(converter=converter):
+                with self.assertRaises(ValueError):
+                    converter(True)
+
+    def test_rejects_non_finite_values(self):
+        for value in (math.nan, math.inf, -math.inf):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    to_float(value)
+
+    def test_vector_rejects_invalid_components(self):
+        for values in (
+            [1, True],
+            [1, math.nan],
+            [1, math.inf],
+        ):
+            with self.subTest(values=values):
+                with self.assertRaises((TypeError, ValueError)):
+                    Vector(values)
+
+    def test_color_rejects_invalid_components(self):
+        with self.assertRaises((TypeError, ValueError)):
+            Color([0, 0, 0, math.nan])
+
+    def test_quad_float_rejects_boolean(self):
+        class Example:
+            box = QuadFloatAttr()
+
+        with self.assertRaises(ValueError):
+            Example().box = (1, 2, True, 4)
+
+
+class TestVectorColorCoerce(unittest.TestCase):
+    def test_vector_coerce_accepts_iterables(self):
+        self.assertEqual(Vector.coerce(range(2)).data, (0.0, 1.0))
+        self.assertEqual(Vector.coerce(iter([1, 2])).data, (1.0, 2.0))
+
+    def test_color_coerce_accepts_iterables(self):
+        self.assertEqual(Color.coerce(range(4)).data, (0.0, 1.0, 2.0, 3.0))
+        self.assertEqual(
+            Color.coerce(iter([1, 0, 0, 1])).data,
+            (1.0, 0.0, 0.0, 1.0),
+        )
+
+    def test_vector_coerce_rejects_strings(self):
+        with self.assertRaises(ValueError):
+            Vector.coerce("12")
+
+    def test_color_coerce_rejects_strings(self):
+        with self.assertRaises(ValueError):
+            Color.coerce("1234")
 
 
 if __name__ == "__main__":

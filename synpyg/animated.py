@@ -1,4 +1,4 @@
-from .field import FloatAttr, StringEnumAttr, TimeAttr
+from .field import FloatAttr, StringAttr, StringEnumAttr, TimeAttr
 from .timeutil import tosec
 from .value import Value
 from .base import WithFields, WithXML
@@ -15,6 +15,7 @@ VALID_INTERPOLATIONS = (
 
 
 class Waypoint(WithFields, WithXML):
+    # users are expected to use Animated.add_waypoint,
     value: Value  # child element, not an XML attribute, so not a Field
     time = TimeAttr(required=True)
     before = StringEnumAttr(choices=VALID_INTERPOLATIONS)
@@ -37,14 +38,31 @@ class Waypoint(WithFields, WithXML):
         return element
 
 
-class Animated:
+class Animated(WithFields):
     _type: type[Value]
-    interpolation: str | None = None
-    node_id: str | None = None
+    id = StringAttr()
+    guid = StringAttr()
+    interpolation = StringAttr()
 
-    def __init__(self) -> None:
+    def __init__(self, *, id=None, guid=None, interpolation=None):
         super().__init__()
-        self.waypoints: list[Waypoint] = []
+        self.waypoints = []
+
+        if id is not None:
+            self.id = id
+        if guid is not None:
+            self.guid = guid
+        if interpolation is not None:
+            self.interpolation = interpolation
+
+    def to_xml_element(self, et):
+        attrs = {"type": self._type.tag, **self._xml_attrs()}
+        element = et.Element("animated", attrs)
+
+        for child in self._ordered_waypoints():
+            element.append(child.to_xml_element(et))
+
+        return element
 
     def add_waypoint(self, time, value, *, fps: float | None = None, **kwargs):
         """Add a waypoint. ``time`` may be seconds or a time string; frames
@@ -58,14 +76,6 @@ class Animated:
 
     def _ordered_waypoints(self) -> list[Waypoint]:
         return sorted(self.waypoints, key=lambda w: w.time)  # stable
-
-    def to_xml_element(self, et):
-        element = et.Element("animated", {"type": self._type.tag})
-        # TODO: interpolation
-
-        for child in self._ordered_waypoints():
-            element.append(child.to_xml_element(et))
-        return element
 
 
 # src reference : CanvasParser::parse_animated

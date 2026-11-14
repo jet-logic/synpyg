@@ -1,8 +1,8 @@
 from __future__ import annotations
 from typing import Any, overload
-import math
 from synpyg.numfmt import fmt_num
 from synpyg.timeutil import fmt_time, tosec
+from synpyg.numeric import to_float, to_int, to_float_tuple
 
 
 class Field:
@@ -70,7 +70,10 @@ class FloatAttr(Field):
         return super().__get__(obj, owner)
 
     def __set__(self, obj: object, value: float):
-        super().__set__(obj, float(value))
+        super().__set__(
+            obj,
+            to_float(value, name=self.attr),
+        )
 
     def dumps(self, obj):
         return self.dumpv(obj.__dict__[self.attr])
@@ -89,7 +92,10 @@ class IntAttr(Field):
         return super().__get__(obj, owner)
 
     def __set__(self, obj: object, value: int):
-        super().__set__(obj, int(value))
+        super().__set__(
+            obj,
+            to_int(value, name=self.attr),
+        )
 
     def dumps(self, obj: object) -> str:
         return str(obj.__dict__[self.attr])
@@ -175,13 +181,10 @@ class QuadFloatAttr(Field):
         return super().__get__(obj, owner)
 
     def __set__(self, obj: object, value):
-        if isinstance(value, str):  # "x1 y1 x2 y2" (commas allowed)
+        if isinstance(value, str):
             value = value.replace(",", " ").split()
-        quad = tuple(float(v) for v in value)
-        if len(quad) != 4:
-            raise ValueError(f"{self.attr}: expected 4 components, got {len(quad)}")
-        if not all(math.isfinite(v) for v in quad):
-            raise ValueError(f"{self.attr}: components must be finite, got {quad!r}")
+
+        quad = to_float_tuple(value, name=self.attr, length=4)
         super().__set__(obj, quad)
 
     def dumps(self, obj):

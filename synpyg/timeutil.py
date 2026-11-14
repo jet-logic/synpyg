@@ -28,8 +28,8 @@ def _parse(s: str, fps: float | None, original: str) -> float:
             return n
         if fps is None:
             raise ValueError(f"Frames require fps: {original!r}")
-        if fps <= 0:
-            raise ValueError(f"fps must be positive, got {fps!r}")
+        if not math.isfinite(fps) or fps <= 0:
+            raise ValueError("fps must be finite and positive")
         return n / fps
     if ":" in s:
         sign = -1.0 if s.startswith("-") else 1.0
