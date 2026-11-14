@@ -1,5 +1,6 @@
 import unittest
 
+from synpyg.base import WithFields
 from synpyg.field import (
     Field,
     BoolAttr,
@@ -205,6 +206,40 @@ class TestIterAttrs(unittest.TestCase):
             value = None
 
         self.assertEqual(list(iter_fields(Child())), [])
+
+
+class TestWithFieldsDiscovery(unittest.TestCase):
+    def test_non_field_override_removes_inherited_field(self):
+        class Parent(WithFields):
+            value = StringAttr()
+
+        class Child(Parent):
+            value = None
+
+        self.assertNotIn("value", Child._fields)
+        self.assertNotIn("value", Child._declared)
+
+    def test_field_override_uses_most_derived_descriptor(self):
+        class Parent(WithFields):
+            value = StringAttr()
+
+        class Child(Parent):
+            value = IntAttr()
+
+        self.assertIsInstance(Child._fields["value"], IntAttr)
+
+    def test_inherited_fields_keep_parent_first_order(self):
+        class Parent(WithFields):
+            first = StringAttr()
+            second = StringAttr()
+
+        class Child(Parent):
+            third = StringAttr()
+
+        self.assertEqual(
+            list(Child._fields),
+            ["first", "second", "third"],
+        )
 
 
 class TestCoerce(unittest.TestCase):

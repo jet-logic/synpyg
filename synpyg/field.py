@@ -206,28 +206,45 @@ class QuadFloatAttr(Field):
         return " ".join(fmt_num(v) for v in obj)
 
 
-def _iter_descriptors(obj):
-    """Yield (name, Field) once per name; the most-derived definition wins."""
-    seen: set[str] = set()
-    for klass in type(obj).__mro__:
+def iter_descriptors(cls: type, *, order: str = "child-first"):
+    """
+    Yield (name, Field) once per name.
+
+    The most-derived definition wins. Non-Field attributes also
+    shadow inherited Fields.
+    """
+    winners = {}
+
+    # Determine the winning definition for each name.
+    for klass in cls.__mro__:
         for name, value in vars(klass).items():
-            if name in seen:
-                continue
-            seen.add(name)  # mark even non-Field values, so they shadow base Fields
-            if isinstance(value, Field):
-                yield name, value
+            if name not in winners:
+                winners[name] = (klass, value)
+
+    # Choose the order in which winning descriptors are emitted.
+    if order == "child-first":
+        classes = cls.__mro__
+    elif order == "parent-first":
+        classes = reversed(cls.__mro__)
+    else:
+        raise ValueError(f"Unknown descriptor order: {order!r}")
+
+    for klass in classes:
+        for name, value in vars(klass).items():
+            owner, winning_value = winners[name]
+
+            if owner is klass and isinstance(winning_value, Field):
+                yield name, winning_value
 
 
 def iter_fields(obj):
-    """Iterate over Field descriptors declared on obj's class and its bases."""
-    yield from _iter_descriptors(obj)
+    yield from iter_descriptors(type(obj), order="child-first")
 
 
 def iter_attrs(obj):
-    """Iterate over (name, Field, value) for every Field that is set on obj."""
-    for name, desc in _iter_descriptors(obj):
+    for name, desc in iter_fields(obj):
         try:
             value = getattr(obj, name)
-        except AttributeError:  # unset
+        except AttributeError:
             continue
         yield name, desc, value

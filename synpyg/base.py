@@ -1,7 +1,7 @@
 from typing import Any, ClassVar, TYPE_CHECKING, overload
 
 from .tree.linked3 import Node
-from .field import Field
+from .field import Field, iter_descriptors
 
 if TYPE_CHECKING:
     from .animated import Animated
@@ -126,14 +126,14 @@ class Param(Field):
     dumpv = dumps
 
 
-def _collect(cls: type, kind: type) -> dict[str, Any]:
-    """Descriptors of ``kind`` on ``cls`` and its bases: parents first, in declaration order."""
-    found: dict[str, Any] = {}
-    for klass in reversed(cls.__mro__):
-        for key, val in vars(klass).items():
-            if isinstance(val, kind):
-                found[key] = val
-    return found
+# def _collect(cls: type, kind: type) -> dict[str, Any]:
+#     """Descriptors of ``kind`` on ``cls`` and its bases: parents first, in declaration order."""
+#     found: dict[str, Any] = {}
+#     for klass in reversed(cls.__mro__):
+#         for key, val in vars(klass).items():
+#             if isinstance(val, kind):
+#                 found[key] = val
+#     return found
 
 
 class _Declared:
@@ -156,7 +156,7 @@ class WithFields(_Declared):
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        found = _collect(cls, Field)  # one collection pass
+        found = dict(iter_descriptors(cls, order="parent-first"))
         for k, v in found.items():  # kind may not change on override
             old = cls._declared.get(k)
             if old is not None and isinstance(old, Param) != isinstance(v, Param):
