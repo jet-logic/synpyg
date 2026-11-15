@@ -14,7 +14,7 @@ def param_names(layer):
 class ParamDescriptorTest(unittest.TestCase):
     def test_class_access_returns_descriptor(self):
         self.assertIsInstance(CircleLayer.radius, Param)
-        self.assertEqual(CircleLayer.radius.name, "radius")
+        self.assertEqual(CircleLayer.radius.out_name, "radius")
 
     def test_declared_params_inherit_base_first(self):
         self.assertEqual(
@@ -86,8 +86,8 @@ class ParamDescriptorTest(unittest.TestCase):
             from_ = Param(Real)
             z = Param(Real, "z-depth")
 
-        self.assertEqual(L.from_.name, "from")
-        self.assertEqual(L.z.name, "z-depth")
+        self.assertEqual(L.from_.out_name, "from")
+        self.assertEqual(L.z.out_name, "z-depth")
 
     def test_set_params_unknown_raises_typeerror(self):
         with self.assertRaises(TypeError):
@@ -256,3 +256,30 @@ class PropertyConstructorTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ValueKindTest(unittest.TestCase):
+    def test_param_uses_property_subclass(self):
+        c = CircleLayer()
+        self.assertIsInstance(c.radius, Property)
+
+    def test_param_exposes_value_type(self):
+        self.assertIs(CircleLayer.radius.typed, Real)
+
+    def test_mismatched_animated_is_rejected(self):
+        c = CircleLayer()
+        with self.assertRaises(ValueError):
+            c.radius = Vector.new_animated()
+
+    def test_matching_animated_is_accepted(self):
+        c = CircleLayer()
+        anim = Real.new_animated()
+        c.radius = anim
+        self.assertIs(c.radius.value, anim)
+
+    def test_as_animated_preserves_current_value(self):
+        c = CircleLayer()
+        c.radius = 2
+        anim = c.radius.as_animated()
+        self.assertIsInstance(anim, Animated)
+        self.assertEqual([w.value.data for w in anim.waypoints], [2.0])

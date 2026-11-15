@@ -1,7 +1,8 @@
 import unittest
 
 from synpyg.base import WithFields
-from synpyg.field import (
+from synpyg.fields import iter_attrs, iter_fields
+from synpyg.attrs import (
     BoolAttr,
     FloatAttr,
     IntAttr,
@@ -11,8 +12,6 @@ from synpyg.field import (
     StringAttr,
     StringEnumAttr,
     TimeAttr,
-    iter_attrs,
-    iter_fields,
 )
 from synpyg.timeutil import tosec
 
@@ -333,10 +332,10 @@ class TestQuadFloatAttr(unittest.TestCase):
     def test_class_access_returns_descriptor(self):
         self.assertIsInstance(self.View.box, QuadFloatAttr)
 
-    def test_dumpv(self):
+    def test_dump_value(self):
         o = self.View()
         o.box = (1, 2, 3, 4)
-        self.assertEqual(self.View.box.dumpv((1, 2.5, 3, 4)), "1 2.5 3 4")
+        self.assertEqual(self.View.box.dump_value((1, 2.5, 3, 4)), "1 2.5 3 4")
 
     def test_missing_raises_attribute_error(self):
         with self.assertRaises(AttributeError):

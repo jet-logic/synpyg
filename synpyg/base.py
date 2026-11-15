@@ -1,6 +1,6 @@
 from typing import Any, ClassVar, TYPE_CHECKING, overload
 from .tree.linked3 import Node
-from .field import Field, iter_descriptors
+from .fields import Field, iter_descriptors
 
 if TYPE_CHECKING:
     from .animated import Animated
@@ -102,21 +102,21 @@ class Param(Field):
     def __get__(self, obj, owner=None):
         if obj is None:
             return self
-        prop = obj.__dict__.get(self.attr)
+        prop = obj.__dict__.get(self.py_name)
         if prop is None:
-            prop = obj.__dict__[self.attr] = Property(self.typed, self.name)
+            prop = obj.__dict__[self.py_name] = Property(self.typed, self.out_name)
         return prop
 
     def __set__(self, obj, value: Any):
         self.__get__(obj, type(obj)).set_value(value)
 
     def __delete__(self, obj):
-        obj.__dict__.pop(self.attr, None)
+        obj.__dict__.pop(self.py_name, None)
 
     def dumps(self, obj):
         raise TypeError("a Param serializes as a <param> element, not an attribute")
 
-    dumpv = dumps
+    dump_value = dumps
 
 
 class _Declared:
@@ -177,4 +177,4 @@ class WithFields(_Declared):
         for k, f in self._fields.items():
             if f.ctx.get("required") and k not in d:
                 raise ValueError(f"{self.__class__.__name__} has no {k}")
-        return {f.name: f.dumpv(v) for _, f, v in self._enum_fields()}
+        return {f.out_name: f.dump_value(v) for _, f, v in self._enum_fields()}

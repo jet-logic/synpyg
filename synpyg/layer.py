@@ -1,6 +1,6 @@
 from .base import Base, Param, WithXML, WithFields
 from .value import Color, Integer, Real, Time, Vector, Boolean
-from .field import BoolAttr, StringAttr
+from .attrs import BoolAttr, StringAttr
 
 
 class Layer(WithFields, WithXML, Base):

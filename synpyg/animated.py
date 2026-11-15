@@ -1,4 +1,4 @@
-from .field import FloatAttr, StringAttr, StringEnumAttr, TimeAttr
+from .attrs import FloatAttr, StringAttr, StringEnumAttr, TimeAttr
 from .timeutil import tosec
 from .value import Value
 from .base import WithFields, WithXML

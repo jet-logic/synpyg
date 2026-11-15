@@ -6,7 +6,7 @@ from synpyg.animated import Animated
 from synpyg.base import Param
 from synpyg.value import Angle, Color, String, Vector
 from synpyg.numeric import to_float, to_int
-from synpyg.field import QuadFloatAttr
+from synpyg.attrs import QuadFloatAttr
 
 
 class StringAngleValueTest(unittest.TestCase):

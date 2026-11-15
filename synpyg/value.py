@@ -1,8 +1,8 @@
-from typing import TYPE_CHECKING, Any, Optional, Self
-from .field import StringAttr
-from .numeric import to_float, to_float_tuple, to_int
+from typing import TYPE_CHECKING, Any, ClassVar, Optional, Self
+from . import kinds
+from .attrs import StringAttr
+from .fields import Kind
 from .numfmt import fmt_num
-from .timeutil import fmt_time, tosec
 
 
 from .base import WithFields, WithXML
@@ -72,137 +72,70 @@ class Value(WithFields, WithXML):
 
 
 class Const(Value):
-    pass
+    """A value whose input checking and text form come from a ``Kind``."""
 
+    kind: ClassVar[Kind]
 
-class Real(Const):
-    tag = "real"
-
-    def __init__(self, data: float, **kwargs) -> None:
+    def __init__(self, data: Any, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.data = to_float(data, name=type(self).__name__)
+        self.data = self.kind.coerce(data, name=type(self).__name__, owner=self)
 
     @classmethod
     def check_value(cls, value: Any) -> Self:
-        return cls(value)
-
-    def to_xml_element(self, et):
-        return et.Element(self.tag, {"value": fmt_num(self.data), **self._xml_attrs()})
-
-
-class Integer(Const):
-    tag = "integer"
-
-    def __init__(self, data: int, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.data = to_int(data, name=type(self).__name__)
-
-    @classmethod
-    def check_value(cls, value: Any) -> Self:
-        return cls(value)
-
-    def to_xml_element(self, et):
-        return et.Element(self.tag, {"value": str(self.data)}, **self._xml_attrs())
-
-
-class Boolean(Const):
-    tag = "bool"
-
-    def __init__(self, data: bool = False, **kwargs):
-        super().__init__(**kwargs)
-        if not isinstance(data, bool):
-            raise ValueError(f"Unexpected {type(self).__name__} value: {data!r}")
-        self.data = data
-
-    @classmethod
-    def check_value(cls, value):
         return cls(value)
 
     def to_xml_element(self, et):
         return et.Element(
-            self.tag, {"value": "true" if self.data else "false"}, **self._xml_attrs()
+            self.tag, {"value": self.kind.dump(self.data), **self._xml_attrs()}
         )
+
+
+class Real(Const):
+    tag = "real"
+    kind = kinds.Number
+
+
+class Integer(Const):
+    tag = "integer"
+    kind = kinds.Integer
+
+
+class Boolean(Const):
+    tag = "bool"
+    kind = kinds.StrictBoolean
+
+    def __init__(self, data: bool = False, **kwargs):
+        super().__init__(data, **kwargs)
 
 
 class String(Const):
     tag = "string"
-
-    def __init__(self, data: str, **kwargs) -> None:
-        super().__init__(**kwargs)
-        if not isinstance(data, str):
-            raise ValueError(f"Unexpected {type(self).__name__} value: {data!r}")
-        self.data = data
-
-    @classmethod
-    def check_value(cls, value: Any) -> Self:
-        return cls(value)
-
-    def to_xml_element(self, et):
-        return et.Element(self.tag, {"value": self.data}, **self._xml_attrs())
+    kind = kinds.String
 
 
 class Angle(Const):
     tag = "angle"
-
-    def __init__(self, data: float, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.data = to_float(data, name=type(self).__name__)
-
-    @classmethod
-    def check_value(cls, value: Any) -> Self:
-        return cls(value)
-
-    def to_xml_element(self, et):
-        return et.Element(self.tag, {"value": fmt_num(self.data)}, **self._xml_attrs())
+    kind = kinds.Number
 
 
 class Time(Const):
     data: float  # seconds
     tag = "time"
+    kind = kinds.TimeKind("fps")  # frames ("12f") are resolved with self.fps
 
     def __init__(self, data, fps: float | None = None, **kwargs):
         """``data`` may be seconds or a time string; frames ("12f") need ``fps``."""
-        super().__init__(**kwargs)
-        self.data = tosec(data, fps)
-
-    @classmethod
-    def check_value(cls, value):
-        return cls(value)
-
-    def to_xml_element(self, et):
-        return et.Element(self.tag, {"value": fmt_time(self.data)}, **self._xml_attrs())
+        self.fps = fps  # read by the kind during coercion
+        super().__init__(data, **kwargs)
 
 
 class _Floats(Const):
     data: tuple[float, ...]
-    _length: int | None = None
-
-    def __init__(self, data, **kwargs) -> None:
-        if isinstance(data, (str, bytes, bytearray)):
-            raise ValueError(f"Unexpected {type(self).__name__} {data!r}")
-
-        try:
-            data = tuple(data)
-        except TypeError:
-            raise ValueError(f"Unexpected {type(self).__name__} {data!r}") from None
-
-        if self._length is not None and len(data) != self._length:
-            raise ValueError(
-                f"{type(self).__name__} needs exactly {self._length} "
-                f"components, got {len(data)}"
-            )
-
-        super().__init__(**kwargs)
-        self.data = to_float_tuple(data, name=type(self).__name__)
-
-    @classmethod
-    def check_value(cls, value: Any):
-        return cls(value)
 
 
 class Color(_Floats):
     tag = "color"
-    _length = 4
+    kind = kinds.Vec4
 
     def to_xml_element(self, et):
         element = et.Element(self.tag, self._xml_attrs())
@@ -213,7 +146,7 @@ class Color(_Floats):
 
 class Vector(_Floats):
     tag = "vector"
-    _length = 2
+    kind = kinds.Vec2
 
     def to_xml_element(self, et):
         element = et.Element(self.tag, self._xml_attrs())
