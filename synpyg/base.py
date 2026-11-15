@@ -120,7 +120,7 @@ class Param(Field):
 
 
 class _Declared:
-    """Shared ``set_params`` for classes that declare descriptors of one kind."""
+    """Shared ``_assign`` for classes that declare descriptors of one kind."""
 
     _declared: ClassVar[dict[str, Any]] = {}
 
