@@ -4,7 +4,7 @@ from .fields import Field, iter_descriptors
 
 if TYPE_CHECKING:
     from .animated import Animated
-    from .value import Value
+    from .value import Value, ValueKind
 
 
 class Base(Node):
@@ -25,17 +25,18 @@ class Property(WithXML):
     # None means "not set": such a property is skipped when serializing.
     value: "Value | Animated | None" = None
 
+    kind: "ValueKind"
+
     def __init__(
-        self, kind: "type[Value] | None" = None, name: str = "", value: Any = None
+        self,
+        kind: "ValueKind | type[Value] | None" = None,
+        name: str = "",
+        value: Any = None,
     ):
         super().__init__()
+        from .value import String, ValueKind
 
-        if kind is None:
-            from .value import String
-
-            kind = String
-
-        self._kind = kind
+        self.kind = ValueKind.of(String if kind is None else kind)
         self.name = name
         self.value = None
 
@@ -53,13 +54,14 @@ class Property(WithXML):
         from .animated import Animated
 
         if isinstance(value, Animated):
-            if self._kind is not None and value._kind is not self._kind:
+            if value.kind != self.kind:
                 raise ValueError(
-                    f"Animated type {value._kind.__name__} does not match param type {self._kind.__name__}"
+                    f"Animated type {value.kind.name} does not match "
+                    f"param type {self.kind.name}"
                 )
             self.value = value
         else:
-            self.value = self._kind.coerce(value)  # type: ignore[union-attr]
+            self.value = self.kind.coerce(value, name=self.name or "value", owner=self)
 
     def as_animated(self, *, preserve: bool = True):
         from .animated import Animated
@@ -68,7 +70,7 @@ class Property(WithXML):
             return self.value
 
         old_value = self.value
-        animated = self._kind.new_animated()  # type: ignore[union-attr]
+        animated = self.kind.new_animated()
 
         if preserve and old_value is not None:
             animated.add_waypoint(0, old_value)
@@ -91,9 +93,17 @@ class Property(WithXML):
 
 
 class Param(Field):
-    def __init__(self, typed: "type[Value]", name: str | None = None, **ctx):
+    def __init__(
+        self, typed: "ValueKind | type[Value]", name: str | None = None, **ctx
+    ):
         super().__init__(name=name, **ctx)
-        self.typed = typed
+        from .value import ValueKind
+
+        self.kind = ValueKind.of(typed)
+
+    @property
+    def typed(self) -> "type[Value]":
+        return self.kind.value_type
 
     @overload
     def __get__(self, obj: None, owner: type) -> "Param": ...
@@ -104,7 +114,7 @@ class Param(Field):
             return self
         prop = obj.__dict__.get(self.py_name)
         if prop is None:
-            prop = obj.__dict__[self.py_name] = Property(self.typed, self.out_name)
+            prop = obj.__dict__[self.py_name] = Property(self.kind, self.out_name)
         return prop
 
     def __set__(self, obj, value: Any):

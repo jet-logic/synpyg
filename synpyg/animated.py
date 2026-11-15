@@ -1,6 +1,6 @@
 from .attrs import FloatAttr, StringAttr, StringEnumAttr, TimeAttr
 from .timeutil import tosec
-from .value import Value
+from .value import Value, ValueKind
 from .base import WithFields, WithXML
 
 VALID_INTERPOLATIONS = (
@@ -39,7 +39,7 @@ class Waypoint(WithFields, WithXML):
 
 
 class Animated(WithFields):
-    _kind: type[Value]
+    kind: ValueKind
 
     id = StringAttr()
     guid = StringAttr()
@@ -47,7 +47,7 @@ class Animated(WithFields):
 
     def __init__(
         self,
-        value_type: type[Value],
+        kind: ValueKind | type[Value],
         *,
         id=None,
         guid=None,
@@ -55,12 +55,11 @@ class Animated(WithFields):
     ):
         super().__init__()
 
-        if not value_type.tag:
-            raise NotImplementedError(
-                f"{value_type.__name__} has no tag and cannot be animated"
-            )
+        kind = ValueKind.of(kind)
+        if not kind.tag:
+            raise NotImplementedError(f"{kind.name} has no tag and cannot be animated")
 
-        self._kind = value_type
+        self.kind = kind
         self.waypoints = []
 
         if id is not None:
@@ -71,7 +70,7 @@ class Animated(WithFields):
             self.interpolation = interpolation
 
     def to_xml_element(self, et):
-        attrs = {"type": self._kind.tag, **self._xml_attrs()}
+        attrs = {"type": self.kind.tag, **self._xml_attrs()}
         element = et.Element("animated", attrs)
 
         for child in self._ordered_waypoints():
@@ -84,7 +83,7 @@ class Animated(WithFields):
         ("12f") need ``fps``."""
         w = Waypoint()
         w.time = tosec(time, fps)
-        w.value = self._kind.coerce(value)
+        w.value = self.kind.coerce(value)
         w._assign(**kwargs)
         self.waypoints.append(w)
         return self
