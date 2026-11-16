@@ -1,6 +1,6 @@
 from typing import Any, ClassVar, TYPE_CHECKING, overload
 from .tree.linked3 import Node
-from .fields import Field, iter_descriptors
+from .fields import Declarative, Field, iter_descriptors
 
 if TYPE_CHECKING:
     from .animated import Animated
@@ -129,36 +129,9 @@ class Param(Field):
     dump_value = dumps
 
 
-class _Declared:
-    """Shared ``_assign`` for classes that declare descriptors of one kind."""
-
-    # Every declared descriptor, ``Attr`` and ``Param`` alike, in declaration order.
+class WithFields(Declarative):
     _fields: ClassVar[dict[str, Field]] = {}
 
-    def _assign(self, **kwargs):
-        for k, v in kwargs.items():
-            if k not in self._fields:
-                raise TypeError(
-                    f"{self.__class__.__name__} has no declared parameter {k!r}"
-                )
-            setattr(self, k, v)
-        return self
-
-    def _assign_given(self, **kwargs):
-        """Like ``_assign``, but arguments that are ``None`` are left unset.
-
-        Names are still checked, so a misspelled keyword is an error even when
-        its value is ``None``. Assignment follows keyword order.
-        """
-        for k in kwargs:
-            if k not in self._fields:
-                raise TypeError(
-                    f"{self.__class__.__name__} has no declared parameter {k!r}"
-                )
-        return self._assign(**{k: v for k, v in kwargs.items() if v is not None})
-
-
-class WithFields(_Declared):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         found = dict(iter_descriptors(cls, order="parent-first"))
