@@ -9,6 +9,7 @@ from .base import WithFields, WithXML
 
 if TYPE_CHECKING:
     from .animated import Animated
+    from .ref import Ref
 
 
 class Value(WithFields, WithXML):
@@ -197,7 +198,12 @@ class ValueKind(Kind[Value]):
 
     def coerce(
         self, value: Any, *, name: str = "value", owner: object | None = None
-    ) -> Value:
+    ) -> "Value | Ref":
+        from .ref import Ref
+
+        if isinstance(value, Ref):  # a reference stands in for a value
+            value.check_kind(self)
+            return value
         return self.value_type.coerce(value)
 
     def dump(self, value: Value) -> str:

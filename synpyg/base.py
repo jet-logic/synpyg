@@ -4,6 +4,7 @@ from .fields import Declarative, Field, iter_descriptors
 
 if TYPE_CHECKING:
     from .animated import Animated
+    from .ref import Ref
     from .value import Value, ValueKind
 
 
@@ -23,7 +24,7 @@ class Property(WithXML):
 
     name: str
     # None means "not set": such a property is skipped when serializing.
-    value: "Value | Animated | None" = None
+    value: "Value | Animated | Ref | None" = None
 
     kind: "ValueKind"
 
@@ -79,8 +80,12 @@ class Property(WithXML):
         return animated
 
     def to_xml_element(self, et):
+        from .ref import Ref
+
         if not self.name:
             raise ValueError("Property has no name")
+        if isinstance(self.value, Ref):  # `use` and a child element exclude each other
+            return et.Element("param", {"name": self.name, "use": self.value.use})
         element = et.Element("param", {"name": self.name})
         if self.value is not None:
             element.append(self.value.to_xml_element(et))

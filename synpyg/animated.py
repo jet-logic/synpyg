@@ -1,4 +1,5 @@
 from .attrs import FloatAttr, StringAttr, StringEnumAttr, TimeAttr
+from .ref import Ref
 from .timeutil import tosec
 from .value import Value, ValueKind
 from .base import WithFields, WithXML
@@ -16,7 +17,7 @@ VALID_INTERPOLATIONS = (
 
 class Waypoint(WithFields, WithXML):
     # users are expected to use Animated.add_waypoint,
-    value: Value  # child element, not an XML attribute, so not a Field
+    value: Value | Ref  # child element (or `use`), not an XML attribute, so not a Field
     time = TimeAttr(required=True)
     before = StringEnumAttr(choices=VALID_INTERPOLATIONS)
     after = StringEnumAttr(choices=VALID_INTERPOLATIONS)
@@ -33,6 +34,8 @@ class Waypoint(WithFields, WithXML):
             raise ValueError(
                 "Waypoint has no value" + (f" (time={at!r})" if at is not None else "")
             ) from None
+        if isinstance(value, Ref):  # `use` and a child element exclude each other
+            return et.Element("waypoint", {**self._xml_attrs(), "use": value.use})
         element = et.Element("waypoint", self._xml_attrs())
         element.append(value.to_xml_element(et))
         return element
