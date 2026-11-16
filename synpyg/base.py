@@ -132,59 +132,75 @@ class Param(Field):
 class _Declared:
     """Shared ``_assign`` for classes that declare descriptors of one kind."""
 
-    _declared: ClassVar[dict[str, Any]] = {}
+    # Every declared descriptor, ``Attr`` and ``Param`` alike, in declaration order.
+    _fields: ClassVar[dict[str, Field]] = {}
 
     def _assign(self, **kwargs):
         for k, v in kwargs.items():
-            if k not in self._declared:
+            if k not in self._fields:
                 raise TypeError(
                     f"{self.__class__.__name__} has no declared parameter {k!r}"
                 )
             setattr(self, k, v)
         return self
 
+    def _assign_given(self, **kwargs):
+        """Like ``_assign``, but arguments that are ``None`` are left unset.
+
+        Names are still checked, so a misspelled keyword is an error even when
+        its value is ``None``. Assignment follows keyword order.
+        """
+        for k in kwargs:
+            if k not in self._fields:
+                raise TypeError(
+                    f"{self.__class__.__name__} has no declared parameter {k!r}"
+                )
+        return self._assign(**{k: v for k, v in kwargs.items() if v is not None})
+
 
 class WithFields(_Declared):
-    _fields: ClassVar[dict[str, Field]] = {}
-
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         found = dict(iter_descriptors(cls, order="parent-first"))
         for k, v in found.items():  # kind may not change on override
-            old = cls._declared.get(k)
+            old = cls._fields.get(k)
             if old is not None and isinstance(old, Param) != isinstance(v, Param):
                 raise TypeError(
                     f"{cls.__name__}.{k} changes between Param and Field; ..."
                 )
-        cls._declared = found
-        cls._params = {k: v for k, v in found.items() if isinstance(v, Param)}
-        cls._fields = {k: v for k, v in found.items() if not isinstance(v, Param)}
+        cls._fields = found
 
     def __setattr__(self, key, value):
         # Dynamic (undeclared) params: name them after the attribute they're stored under.
-        if isinstance(value, Property) and key not in self._params and not value.name:
+        if isinstance(value, Property) and key not in self._fields and not value.name:
             value.name = key.rstrip("_")  # same rule Field.__set_name__ uses
         super().__setattr__(key, value)
 
-    def _enum_fields(self):
-        """Yield (attr, Field, value) for every field that is set, in declaration order."""
-        d = self.__dict__
+    def _attr_fields(self):
+        """Yield (attr, Field) for declared fields that serialize as XML attributes."""
         for k, f in self._fields.items():
+            if not isinstance(f, Param):
+                yield k, f
+
+    def _enum_fields(self):
+        """Yield (attr, Field, value) for every attribute field that is set, in declaration order."""
+        d = self.__dict__
+        for k, f in self._attr_fields():
             if k in d:
                 yield k, f, d[k]
 
     def _enum_params(self):
         d = self.__dict__
-        for k in self._params:
-            if (p := d.get(k)) is not None:
+        for k, f in self._fields.items():
+            if isinstance(f, Param) and (p := d.get(k)) is not None:
                 yield k, p
         for k, v in d.items():
-            if k not in self._params and isinstance(v, Property):
+            if k not in self._fields and isinstance(v, Property):
                 yield k, v
 
     def _xml_attrs(self) -> dict[str, str]:
         d = self.__dict__
-        for k, f in self._fields.items():
+        for k, f in self._attr_fields():
             if f.ctx.get("required") and k not in d:
                 raise ValueError(f"{self.__class__.__name__} has no {k}")
         return {f.out_name: f.dump_value(v) for _, f, v in self._enum_fields()}

@@ -18,7 +18,7 @@ class ParamDescriptorTest(unittest.TestCase):
 
     def test_declared_params_inherit_base_first(self):
         self.assertEqual(
-            list(CircleLayer._params),
+            [k for k, f in CircleLayer._fields.items() if isinstance(f, Param)],
             [
                 "z_depth",
                 "amount",

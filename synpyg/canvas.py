@@ -30,12 +30,7 @@ class Canvas(WithFields, WithXML, Grouping):
         self.height = height
         self.fps = fps  # before the times, so "12f" can be resolved
         # optional attributes stay unset (and out of the XML) when None
-        if begin_time is not None:
-            self.begin_time = begin_time
-        if end_time is not None:
-            self.end_time = end_time
-        if view_box is not None:
-            self.view_box = view_box
+        self._assign_given(begin_time=begin_time, end_time=end_time, view_box=view_box)
         self.meta: dict[str, Any] = {}
 
     def to_xml_element(self, et: Any):

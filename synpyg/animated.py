@@ -62,12 +62,7 @@ class Animated(WithFields):
         self.kind = kind
         self.waypoints = []
 
-        if id is not None:
-            self.id = id
-        if guid is not None:
-            self.guid = guid
-        if interpolation is not None:
-            self.interpolation = interpolation
+        self._assign_given(id=id, guid=guid, interpolation=interpolation)
 
     def to_xml_element(self, et):
         attrs = {"type": self.kind.tag, **self._xml_attrs()}

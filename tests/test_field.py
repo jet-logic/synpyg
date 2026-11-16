@@ -216,7 +216,6 @@ class TestWithFieldsDiscovery(unittest.TestCase):
             value = None
 
         self.assertNotIn("value", Child._fields)
-        self.assertNotIn("value", Child._declared)
 
     def test_field_override_uses_most_derived_descriptor(self):
         class Parent(WithFields):
