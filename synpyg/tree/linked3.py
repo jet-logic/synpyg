@@ -178,7 +178,7 @@ class Node(Base):
 class End(Base):
     _next: Union["End", "Node", Base, None]
     _prev: Union["End", "Node", Base, None]  # Should have no None
-    _parent: Optional[Node]  # Should have no Optional
+    _parent: Node | None  # Should have no Optional
 
     def __init__(self, parent: Node):
         self._parent = parent

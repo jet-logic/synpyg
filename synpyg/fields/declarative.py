@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Any, ClassVar
 
 from .base import Field
@@ -15,12 +13,15 @@ class Declarative:
     _fields: ClassVar[dict[str, Field]]  # annotation only: supplied by the implementor
 
     def _assign(self, **kwargs):
-        for k, v in kwargs.items():
+        for k in kwargs:
             if k not in self._fields:
                 raise TypeError(
                     f"{self.__class__.__name__} has no declared parameter {k!r}"
                 )
+
+        for k, v in kwargs.items():
             setattr(self, k, v)
+
         return self
 
     def _assign_given(self, **kwargs: Any):

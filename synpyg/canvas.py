@@ -1,8 +1,38 @@
-from typing import Any
+from types import MappingProxyType
+from typing import Any, Mapping
+from .animated import Animated
 from .base import WithFields, WithXML
 from .attrs import PositiveFloatAttr, PositiveIntAttr, StringAttr, TimeAttr
 from .layer import Grouping, Layer
 from .attrs import QuadFloatAttr
+from .ref import Ref
+from .value import Value
+
+
+def _waypoint_slots(where, anim):
+    for w in anim.waypoints:
+        value = w.__dict__.get("value")
+        if value is not None:
+            yield f"{where}, waypoint at {w.__dict__.get('time')}s", value
+
+
+def _value_slots(where, value):
+    if value is not None:
+        yield where, value
+        if isinstance(value, Animated):
+            yield from _waypoint_slots(where, value)
+
+
+def _embedded(container):
+    """Yield (where, value) for each value or Ref held by a param or waypoint under ``container``."""
+    for layer in container:
+        if not isinstance(layer, Layer):
+            continue  # serializing reports it
+        for _, prop in layer._enum_params():
+            where = f"{layer.layer_type} layer, param {prop.name!r}"
+            yield from _value_slots(where, prop.value)
+        if isinstance(layer, Grouping):
+            yield from _embedded(layer)
 
 
 class Canvas(WithFields, WithXML, Grouping):
@@ -32,9 +62,79 @@ class Canvas(WithFields, WithXML, Grouping):
         # optional attributes stay unset (and out of the XML) when None
         self._assign_given(begin_time=begin_time, end_time=end_time, view_box=view_box)
         self.meta: dict[str, Any] = {}
+        self._defs: dict[str, Value | Animated] = {}
+
+    @property
+    def defs(self) -> Mapping[str, Value | Animated]:
+        """The exported nodes (the ``<defs>`` library) by id, in export order."""
+        return MappingProxyType(self._defs)
+
+    def export(self, id: str, node: Value | Animated):
+        """Export ``node`` under ``id`` so it can be referred to with ``Ref(node)``.
+
+        Sets ``node.id`` and returns ``node``. Exporting the same node under the
+        same id again is a no-op; reusing an id or renaming a node is an error.
+        Ids may not contain ``#`` or ``:``, which separate the parts of a
+        ``use`` string.
+        """
+        if not isinstance(id, str) or not id:
+            raise ValueError("export id must be a non-empty string")
+        if "#" in id or ":" in id:
+            raise ValueError(f"export id {id!r} may not contain '#' or ':'")
+        if not isinstance(node, (Value, Animated)):
+            raise TypeError(
+                f"can export a Value or an Animated, got {type(node).__name__}"
+            )
+        as_ = next((k for k, n in self._defs.items() if n is node), None)
+        if as_ is not None:
+            if as_ == id:
+                return node
+            raise ValueError(f"{node!r} is already exported as {as_!r}")
+        if id in self._defs:
+            raise ValueError(f"id {id!r} is already exported")
+        old = getattr(node, "id", None)  # unset field raises AttributeError
+        if old and old != id:
+            raise ValueError(f"{node!r} already has id {old!r}")
+        node.id = id
+        self._defs[id] = node
+        return node
+
+    def check_defs(self) -> None:
+        """Raise ``ValueError`` if the exports and the tree disagree.
+
+        Every ``Ref`` to a node must point at one exported here, and a node
+        with an id must be exported and referred to, not embedded in a param.
+        """
+        slots = []
+        for key, node in self._defs.items():
+            if getattr(node, "id", None) != key:
+                raise ValueError(
+                    f"exported node {key!r} now has id {getattr(node, 'id', None)!r}"
+                )
+            if isinstance(node, Animated):
+                slots.extend(_waypoint_slots(f"export {key!r}", node))
+        slots.extend(_embedded(self))
+        for where, value in slots:
+            if isinstance(value, Ref):
+                t = value.target
+                if not isinstance(t, str) and not any(t is n for n in self._defs.values()):
+                    raise ValueError(
+                        f"{value!r} in {where} is not exported from this canvas; "
+                        f"call Canvas.export()"
+                    )
+            elif getattr(value, "id", None):
+                raise ValueError(
+                    f"{value!r} in {where} has id {value.id!r} but is embedded; "
+                    f"export it and refer to it with Ref(...)"
+                )
 
     def to_xml_element(self, et: Any):
+        self.check_defs()
         root = et.Element("canvas", self._xml_attrs())
+        if self._defs:
+            defs = et.SubElement(root, "defs")
+            for node in self._defs.values():
+                defs.append(node.to_xml_element(et))
         for child in self:
             if not isinstance(child, Layer):
                 raise TypeError(

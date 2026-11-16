@@ -49,12 +49,7 @@ class Animated(WithFields):
     interpolation = StringEnumAttr(choices=VALID_INTERPOLATIONS)
 
     def __init__(
-        self,
-        kind: ValueKind | type[Value],
-        *,
-        id=None,
-        guid=None,
-        interpolation=None,
+        self, kind: ValueKind | type[Value], *, id=None, guid=None, interpolation=None
     ):
         super().__init__()
 
@@ -63,7 +58,7 @@ class Animated(WithFields):
             raise NotImplementedError(f"{kind.name} has no tag and cannot be animated")
 
         self.kind = kind
-        self.waypoints = []
+        self.waypoints: list[Waypoint] = []
 
         self._assign_given(id=id, guid=guid, interpolation=interpolation)
 
@@ -76,13 +71,28 @@ class Animated(WithFields):
 
         return element
 
-    def add_waypoint(self, time, value, *, fps: float | None = None, **kwargs):
+    def add_waypoint(
+        self, time, value, *, fps: float | None = None, add=False, **kwargs
+    ):
         """Add a waypoint. ``time`` may be seconds or a time string; frames
         ("12f") need ``fps``."""
         w = Waypoint()
         w.time = tosec(time, fps)
-        w.value = self.kind.coerce(value)
+        w.value = v = self.kind.coerce(value)
         w._assign(**kwargs)
+        if add:
+            try:
+                last = self.waypoints[-1]
+            except IndexError:
+                raise ValueError(f"Cant add")
+            else:
+                w.value = self.kind.add(last.value, v)
+                f = last.time
+                if time < f:
+                    raise ValueError("time must be incremental")
+                elif time == f:
+                    last.value = value
+                    return last
         self.waypoints.append(w)
         return self
 

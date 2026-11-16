@@ -23,3 +23,7 @@ class Kind(Generic[T]):
     def dump(self, value: T) -> str:
         """Serialize an already-coerced value."""
         return str(value)
+
+    def add(self, a: T, b: T) -> str:
+        """Serialize an already-coerced value."""
+        raise NotImplementedError()

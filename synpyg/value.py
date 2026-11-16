@@ -59,7 +59,8 @@ class Value(WithFields, WithXML):
         return Property(self.as_kind(), name, self)
 
     def _xml_attrs(self):
-        return {"guid": guid} if (guid := self.__dict__.get("guid")) else {}
+        d = self.__dict__
+        return {k: d[k] for k in ("id", "guid") if d.get(k)}
 
     def __repr__(self) -> str:
         args = [repr(self.__dict__.get("data"))]
