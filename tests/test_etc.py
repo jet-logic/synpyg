@@ -6,6 +6,7 @@ from synpyg.animated import Waypoint
 from synpyg.base import Property
 from synpyg.canvas import Canvas
 from synpyg.layer import SolidColorLayer
+from synpyg.root import Root
 from synpyg.value import Boolean, Color, Integer, Real, String, Vector
 
 
@@ -69,11 +70,18 @@ class Test(unittest.TestCase):
             sorted(w.__dict__.keys()), ["before", "temporal_tension", "time", "value"]
         )
 
+    def test_write2(self):
+        root = Root()
+        canvas = root.canvas(begin_time="0f", end_time="5s")
+
     def test_write(self):
+        root = Root()
+        canvas = root.canvas(begin_time="0f", end_time="5s")
+
         if 1:
             out = Path(tempfile.gettempdir()) / "test.sif"
 
-            root = Canvas(
+            canvas = Canvas(
                 version="1.2",
                 width=1920,
                 height=1080,
@@ -83,12 +91,12 @@ class Test(unittest.TestCase):
                 view_box="-10 5.625 10 -5.625",
             )
 
-            sol = root.add_solid_color_layer("Background")
+            sol = canvas.add_solid_color_layer("Background")
             self.assertEqual(sol.desc, "Background")
             sol._assign(color=(0.5, 1, 0, 1))
             self.assertIsInstance(sol.color.value, Color)
 
-            g = root.add_group_layer()
+            g = canvas.add_group_layer()
             cir = g.add_circle_layer("MovingBall")
             cir.color.set_value([0, 0.8, 0.8, 1.0])
             cir.radius.set_value(1.2)
@@ -105,7 +113,7 @@ class Test(unittest.TestCase):
             anim.add_waypoint(4, Vector([6, 0]), before="clamped", after="clamped")
             anim.add_waypoint(5, Vector([6, 0]), before="clamped", after="clamped")
 
-            root.save_xml(out)
+            canvas.save_xml(out)
             self.assertTrue(out.is_file())
 
             # Sanity-check the serialized tree instead of trusting save_xml blindly.

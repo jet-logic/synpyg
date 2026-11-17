@@ -69,9 +69,10 @@ def SeqA(
             B = base_frame  # base time
             s = start  # starting time
             while res:
-                p, e, f = res(s, base_frame, hint_dur)
+                p, q, f = res(s, base_frame, hint_dur)
+                e = max(e, q)  # the Seq lasts until its longest item ends
                 res.start = p
-                res.end = e
+                res.end = q
                 res.call = f
                 res = res.next
                 s = max(s + o, B)  # next start time
@@ -80,12 +81,13 @@ def SeqA(
             B = base_frame  # base time
             s = start  # starting time
             while res:
-                p, e, f = res(s, base_frame, hint_dur)
+                p, q, f = res(s, base_frame, hint_dur)
+                e = max(e, q)  # the Seq lasts until its longest item ends
                 res.start = p
-                res.end = e
+                res.end = q
                 res.call = f
                 res = res.next
-                s = max(e + o, B)  # next start time
+                s = max(q + o, B)  # next start: relative to this item's own end
         else:
             while res:
                 p, e, f = res(e, base_frame, hint_dur)
@@ -137,7 +139,7 @@ def ParA(
     end: bool = False,
     dur: Optional[float] = None,
 ):
-    _hint_dur = None if dur is None else (dur * 0.10)
+    _hint_dur = None if dur is None else (dur * 1.0)
     res_head = llsup(track, *args)
 
     def resolve(start: float, base_frame: float, hint_dur: float):
