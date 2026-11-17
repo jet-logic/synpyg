@@ -1,3 +1,4 @@
+import math
 from typing import Union, Any, Callable
 
 INF = float("inf")
@@ -11,6 +12,8 @@ class Track:
         fps: float = 24.0,
         easing: Union[tuple[float, float, float, float], bool, None] = None,
     ):
+        if not (math.isfinite(hint_dur) and hint_dur >= 0):
+            raise ValueError(f"Invalid hint_dur {hint_dur}")
         self.hint_dur = hint_dur
         self.current_time = current_time
         self.fps = fps
@@ -24,8 +27,10 @@ class Track:
 
     def feed(self, cur: "Resolver"):
         s, e, f = cur(self.current_time, self.current_time, self.hint_dur)
-        f(self, s, e)
         d = e - s
+        if not d >= 0:  # also catches NaN; checked before f() so nothing is emitted
+            raise ValueError(f"Invalid duration {d}")
+        f(self, s, e)
         if d < INF:
             self.current_time += d
         return self

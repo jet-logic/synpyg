@@ -2,7 +2,19 @@ from typing import Optional, Protocol, Any, Union
 from .track import Finalizer, Proxy, RangeEtc, Resolver, Track
 
 
+def _check_dur(dur: Optional[float]) -> Optional[float]:
+    """Coerce a duration to float; reject negative and NaN (inf is allowed)."""
+    if dur is None:
+        return None
+    dur = dur * 1.0
+    if not dur >= 0:
+        raise ValueError(f"Invalid duration {dur}")
+    return dur
+
+
 def PassA(track: "Track", dur: float = 1, **kwargs) -> Resolver:
+    dur = _check_dur(dur)
+
     def supply(track: "Track", start: float, end: float):
         pass
 
@@ -23,7 +35,7 @@ def ToA(
         _items = prop
     else:
         _items = (prop,)
-    _dur = None if dur is None else (dur * 1.0)
+    _dur = _check_dur(dur)
     _extra = kwargs
 
     def run(track: "Track", s: float, e: float):
@@ -53,7 +65,9 @@ def SeqA(
     delay: Optional[float] = None,
     dur: Optional[float] = None,
 ):
-    _hint_dur = None if dur is None else (dur * 1.0)
+    if stagger is not None and delay is not None:
+        raise ValueError("stagger and delay are mutually exclusive")
+    _hint_dur = _check_dur(dur)
     _stagger = None if stagger is None else (stagger * 1.0)
     _delay = None if delay is None else (delay * 1.0)
     res_head = llsup(track, *args)
@@ -119,7 +133,8 @@ class Wrapper(Protocol):
         raise NotImplementedError()
 
 
-def llsup(track, *args: Proxy) -> Wrapper:
+def llsup(track, *args: Proxy) -> Optional[Wrapper]:
+    """Link the resolved items; returns None when there are none (a no-op)."""
     head = cur = None
     for sup in args:
         res: Wrapper = sup(track)  # type: ignore
@@ -129,7 +144,6 @@ def llsup(track, *args: Proxy) -> Wrapper:
             head = cur = res
         res.next = None
         cur = res
-    assert head
     return head
 
 
@@ -139,7 +153,7 @@ def ParA(
     end: bool = False,
     dur: Optional[float] = None,
 ):
-    _hint_dur = None if dur is None else (dur * 1.0)
+    _hint_dur = _check_dur(dur)
     res_head = llsup(track, *args)
 
     def resolve(start: float, base_frame: float, hint_dur: float):
@@ -158,7 +172,7 @@ def ParA(
             res.call = f
             res = res.next
 
-        if end:
+        if end and res_head:
             assert dur is not None
             res = res_head
             while res:

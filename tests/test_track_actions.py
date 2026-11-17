@@ -211,33 +211,65 @@ class ToStartBugTest(unittest.TestCase):
         self.assertIn((6.0, 1.0), waypoints(a))
 
 
-class DurationValidationBugTest(unittest.TestCase):
-    """Negative / NaN durations are not validated; time can run backwards."""
+class DurationValidationTest(unittest.TestCase):
+    """Negative / NaN durations are rejected (was: time ran backwards)."""
 
-    @unittest.expectedFailure
     def test_negative_pass_duration_is_rejected(self):
         t = Track()
         t.advance(10)
         with self.assertRaises(ValueError):
-            t << Pass(-3)  # today: silently rewinds current_time to 7
+            t << Pass(-3)
 
-    @unittest.expectedFailure
     def test_negative_to_duration_is_rejected(self):
         t = Track()
         t.advance(10)
         with self.assertRaises(ValueError):
-            t << To(Recorder(), 1, dur=-1)  # today: waypoint at 9, time rewinds
+            t << To(Recorder(), 1, dur=-1)
 
-    @unittest.expectedFailure
     def test_nan_pass_duration_is_rejected(self):
         t = Track()
         with self.assertRaises(ValueError):
-            t << Pass(float("nan"))  # today: silently a zero-length no-op
+            t << Pass(float("nan"))
 
-    @unittest.expectedFailure
     def test_negative_track_hint_dur_is_rejected(self):
         with self.assertRaises(ValueError):
-            Track(hint_dur=-1)  # today: every To() without dur rewinds time
+            Track(hint_dur=-1)
+
+
+class DurationEdgeCasesTest(unittest.TestCase):
+    def test_zero_durations_are_allowed(self):
+        t = Track(hint_dur=0)
+        r = Recorder()
+        t << Pass(0) << To(r, 1) << To(r, 2, dur=0)
+        self.assertEqual(r.times, [0.0, 0.0])
+        self.assertEqual(t.current_time, 0)
+
+    def test_seq_and_par_reject_negative_dur_hint(self):
+        for make in (Seq, Par, ParE):
+            with self.assertRaises(ValueError):
+                Track() << make(Pass(1), dur=-1)
+
+    def test_rejected_duration_leaves_the_track_untouched(self):
+        t = Track()
+        r = Recorder()
+        with self.assertRaises(ValueError):
+            t << Seq(To(r, 1, dur=1), Pass(-1))
+        self.assertEqual((t.current_time, r.calls), (0, []))
+
+    def test_empty_pare_is_a_noop(self):
+        t = Track()
+        t << ParE()
+        self.assertEqual(t.current_time, 0)
+
+    def test_empty_container_does_not_disturb_neighbours(self):
+        t = Track()
+        r = Recorder()
+        t << Seq(To(r, 1, dur=1), Par(), Seq(), To(r, 2, dur=1))
+        self.assertEqual(r.times, [1.0, 2.0])
+
+    def test_stagger_zero_with_no_delay_is_still_allowed(self):
+        Track() << Seq(Pass(1), Pass(1), stagger=0)
+        Track() << Seq(Pass(1), Pass(1), delay=0)
 
 
 class AssertAsValidationBugTest(unittest.TestCase):
@@ -267,31 +299,24 @@ class AssertAsValidationBugTest(unittest.TestCase):
         self.assertAlmostEqual(a.times[0], b.times[0])
 
 
-class EmptyContainerBugTest(unittest.TestCase):
-    """Seq()/Par()/ParE() with no items hit ``assert head`` in llsup().
+class EmptyContainerTest(unittest.TestCase):
+    """Seq()/Par()/ParE() with no items are zero-length no-ops (was: the
+    ``assert head`` in llsup() raised AssertionError), so that
+    ``Seq(*[... for x in xs])`` works for an empty ``xs``."""
 
-    Desired behaviour chosen here: a zero-length no-op (the usual result of
-    ``Seq(*[... for x in xs])`` with an empty ``xs``). Raising ValueError
-    would be a defensible alternative; AssertionError is not.
-    """
-
-    @unittest.expectedFailure
     def test_empty_seq_is_a_noop(self):
         t = Track()
         t << Seq()
         self.assertEqual(t.current_time, 0)
 
-    @unittest.expectedFailure
     def test_empty_par_is_a_noop(self):
         t = Track()
         t << Par()
         self.assertEqual(t.current_time, 0)
 
 
-class StaggerAndDelayBugTest(unittest.TestCase):
-    @unittest.expectedFailure
+class StaggerAndDelayTest(unittest.TestCase):
     def test_seq_rejects_stagger_and_delay_together(self):
-        # today `delay` is silently ignored when `stagger` is also given
         with self.assertRaises(ValueError):
             Track() << Seq(Pass(1), Pass(1), stagger=0.25, delay=5)
 
