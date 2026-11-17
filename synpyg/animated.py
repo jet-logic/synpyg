@@ -44,6 +44,12 @@ class Waypoint(WithFields, WithXML):
         element.append(value.to_xml_element(et))
         return element
 
+    def __repr__(self) -> str:
+        d = self.__dict__
+        parts = [f"{k}={d[k]!r}" for k in ("time", "value") if k in d]
+        parts += [f"{k}={v!r}" for k, _, v in self._enum_fields() if k != "time"]
+        return f"Waypoint({', '.join(parts)})"
+
 
 class Animated(WithFields):
     kind: ValueKind
@@ -65,6 +71,12 @@ class Animated(WithFields):
         self.waypoints: list[Waypoint] = []
 
         self._assign_given(id=id, guid=guid, interpolation=interpolation)
+
+    def __repr__(self) -> str:
+        parts = [self.kind.name]
+        parts += [f"{k}={v!r}" for k, _, v in self._enum_fields()]
+        parts.append(f"waypoints={len(self.waypoints)}")
+        return f"Animated({', '.join(parts)})"
 
     def _xml_attrs(self) -> dict[str, str]:
         attrs = super()._xml_attrs()
@@ -118,7 +130,7 @@ class Animated(WithFields):
         w.time = t = tosec(time, fps)
         w.value = v = self.kind.coerce(value)
         self._reject_self_reference(v)
-        w._assign(**kwargs)
+        w._assign_given(**kwargs)  # None leaves a field unset, as in Animated(...)
         if add:
             if not self.waypoints:
                 raise ValueError("No previous waypoint")
@@ -133,7 +145,7 @@ class Animated(WithFields):
             w.value = v = self.kind.add(last.value, v)
             if t == last.time:
                 last.value = v
-                last._assign(**kwargs)
+                last._assign_given(**kwargs)
                 return self
         self.waypoints.append(w)
         return self

@@ -55,6 +55,7 @@ class RefCycleBugs(unittest.TestCase):
         with self.assertRaises(ValueError):
             xml(c)
 
+
     def test_self_reference_set_directly_rejected_on_serialize(self):
         a = Animated(Real, id="x")
         w = Waypoint()
@@ -191,7 +192,6 @@ class Oddities(unittest.TestCase):
         with self.assertRaises(TypeError):
             Animated(Value)
 
-    @expectedFailure
     def test_add_waypoint_none_kwarg_means_unset(self):
         # Animated(...) already treats None as "leave unset".
         a = Animated(Real).add_waypoint(0, 1, before=None)
@@ -203,7 +203,6 @@ class Oddities(unittest.TestCase):
         a.add_waypoint(0.1 + 0.2, 1)  # 0.30000000000000004
         a.add_waypoint(0.3, 2, add=True)  # same instant, up to rounding
 
-    @expectedFailure
     def test_repr_is_informative(self):
         self.assertIn("Real", repr(Animated(Real)))
         self.assertIn("time", repr(Waypoint()._assign(time=1)))
@@ -213,6 +212,36 @@ class Oddities(unittest.TestCase):
             Animated(Real).add_waypoint(0, 1, add=True)
         except ValueError as e:
             self.assertIsNone(e.__context__)  # currently chained to IndexError
+
+
+class NoneKwargAndReprGuards(unittest.TestCase):
+    def test_none_kwarg_does_not_clear_on_merge(self):
+        a = Animated(Real).add_waypoint(1, 5, before="linear")
+        a.add_waypoint(1, 2, add=True, before=None, after="halt")
+        w = a.waypoints[0]
+        self.assertEqual((w.before, w.after), ("linear", "halt"))
+
+    def test_misspelled_kwarg_still_raises_even_when_none(self):
+        with self.assertRaises(TypeError):
+            Animated(Real).add_waypoint(0, 1, bogus=None)
+
+    def test_waypoint_repr_shows_time_value_and_set_fields(self):
+        w = Waypoint()._assign(before="linear", time=1.5)
+        w.value = Real(2)
+        self.assertEqual(
+            repr(w), "Waypoint(time=1.5, value=Real(2.0), before='linear')"
+        )
+        self.assertEqual(repr(Waypoint()), "Waypoint()")
+
+    def test_animated_repr_shows_kind_set_fields_and_count(self):
+        a = Animated(Vector, id="p").add_waypoint(0, [1, 2])
+        self.assertEqual(repr(a), "Animated(Vector, id='p', waypoints=1)")
+
+    def test_repr_of_mutually_referencing_animations_terminates(self):
+        a, b = Animated(Real, id="a"), Animated(Real, id="b")
+        a.add_waypoint(0, Ref(b))
+        b.add_waypoint(0, Ref(a))
+        self.assertIn("Ref(Animated(Real, id='b'", repr(a.waypoints[0]))
 
 
 # ---------------------------------------------------------------------------
@@ -295,14 +324,8 @@ class WorkingBehaviour(unittest.TestCase):
 
     def test_waypoint_attribute_names(self):
         a = Animated(Real).add_waypoint(
-            1,
-            1,
-            before="clamped",
-            after="auto",
-            tension=0.5,
-            temporal_tension=0.25,
-            continuity=0.1,
-            bias=-0.2,
+            1, 1, before="clamped", after="auto", tension=0.5,
+            temporal_tension=0.25, continuity=0.1, bias=-0.2,
         )
         el = xml(a)[0]
         self.assertEqual(el.get("temporal-tension"), "0.25")
