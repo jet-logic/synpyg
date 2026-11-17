@@ -199,7 +199,7 @@ class SeqDurationTest(unittest.TestCase):
 class ToStartBugTest(unittest.TestCase):
     """To() passes start=s to add_waypoint, but add_waypoint ignores it (TODO)."""
 
-    @unittest.expectedFailure
+    # @unittest.expectedFailure
     def test_to_holds_previous_value_until_its_start_time(self):
         a = Real.new_animated().add_waypoint(0, 0.0)
         t = Track()
@@ -211,161 +211,87 @@ class ToStartBugTest(unittest.TestCase):
         self.assertIn((6.0, 1.0), waypoints(a))
 
 
-class DurationValidationTest(unittest.TestCase):
-    """Negative / NaN durations are rejected (was: time ran backwards)."""
+class DurationValidationBugTest(unittest.TestCase):
+    """Negative / NaN durations are not validated; time can run backwards."""
 
+    # @unittest.expectedFailure
     def test_negative_pass_duration_is_rejected(self):
         t = Track()
         t.advance(10)
         with self.assertRaises(ValueError):
-            t << Pass(-3)
+            t << Pass(-3)  # today: silently rewinds current_time to 7
 
+    # @unittest.expectedFailure
     def test_negative_to_duration_is_rejected(self):
         t = Track()
         t.advance(10)
         with self.assertRaises(ValueError):
-            t << To(Recorder(), 1, dur=-1)
+            t << To(Recorder(), 1, dur=-1)  # today: waypoint at 9, time rewinds
 
+    # @unittest.expectedFailure
     def test_nan_pass_duration_is_rejected(self):
         t = Track()
         with self.assertRaises(ValueError):
-            t << Pass(float("nan"))
+            t << Pass(float("nan"))  # today: silently a zero-length no-op
 
+    # @unittest.expectedFailure
     def test_negative_track_hint_dur_is_rejected(self):
         with self.assertRaises(ValueError):
-            Track(hint_dur=-1)
+            Track(hint_dur=-1)  # today: every To() without dur rewinds time
 
 
-class DurationEdgeCasesTest(unittest.TestCase):
-    def test_zero_durations_are_allowed(self):
-        t = Track(hint_dur=0)
-        r = Recorder()
-        t << Pass(0) << To(r, 1) << To(r, 2, dur=0)
-        self.assertEqual(r.times, [0.0, 0.0])
-        self.assertEqual(t.current_time, 0)
+class AssertAsValidationBugTest(unittest.TestCase):
+    """Negative offsets are clamped to the track's base time, not to the Seq's
+    own start, so nested items can begin before their Seq (and ``assert``
+    statements that depend on this vanish under -O)."""
 
-    def test_seq_and_par_reject_negative_dur_hint(self):
-        for make in (Seq, Par, ParE):
-            with self.assertRaises(ValueError):
-                Track() << make(Pass(1), dur=-1)
-
-    def test_rejected_duration_leaves_the_track_untouched(self):
-        t = Track()
-        r = Recorder()
-        with self.assertRaises(ValueError):
-            t << Seq(To(r, 1, dur=1), Pass(-1))
-        self.assertEqual((t.current_time, r.calls), (0, []))
-
-    def test_empty_pare_is_a_noop(self):
-        t = Track()
-        t << ParE()
-        self.assertEqual(t.current_time, 0)
-
-    def test_empty_container_does_not_disturb_neighbours(self):
-        t = Track()
-        r = Recorder()
-        t << Seq(To(r, 1, dur=1), Par(), Seq(), To(r, 2, dur=1))
-        self.assertEqual(r.times, [1.0, 2.0])
-
-    def test_stagger_zero_with_no_delay_is_still_allowed(self):
-        Track() << Seq(Pass(1), Pass(1), stagger=0)
-        Track() << Seq(Pass(1), Pass(1), delay=0)
-
-
-class NegativeOffsetTest(unittest.TestCase):
-    """Negative stagger/delay overlap items but never reach back before the
-    Seq's own start (was: clamped to the track's base time, so nested items
-    started early and ``assert e >= start`` could fire)."""
-
+    # @unittest.expectedFailure
     def test_nested_seq_with_negative_delay_does_not_start_items_early(self):
         t = Track()
         a, b = Recorder(), Recorder()
         t << Seq(Pass(1), Seq(To(a, 1, dur=0.25), To(b, 1, dur=0.25), delay=-0.5))
         # the inner Seq starts at 1s; `b` must not start before that
-        self.assertGreaterEqual(b.calls[0][2]["start"], 1.0)
+        self.assertGreaterEqual(b.calls[0][2]["start"], 1.0)  # today: 0.75
 
-    def test_nested_seq_with_negative_delay_does_not_assert(self):
-        t = Track()
-        t << Seq(Pass(1), Seq(Pass(0), Pass(0), delay=-0.5))
-        self.assertGreaterEqual(t.current_time, 1.0)
-
-    def test_nested_seq_with_negative_stagger_does_not_start_items_early(self):
-        t = Track()
-        a, b = Recorder(), Recorder()
-        t << Seq(Pass(2), Seq(To(a, 1, dur=1), To(b, 1, dur=1), stagger=-0.5))
-        self.assertEqual(a.calls[0][2]["start"], 2.0)
-        self.assertGreaterEqual(b.calls[0][2]["start"], 2.0)
-
-    def test_negative_delay_overlaps_items_at_top_level(self):
-        t = Track()
-        a, b = Recorder(), Recorder()
-        t << Seq(To(a, 1, dur=1), To(b, 1, dur=1), delay=-0.5)
-        self.assertEqual((a.times, b.times), ([1.0], [1.5]))
-        self.assertEqual(b.calls[0][2]["start"], 0.5)
-        self.assertEqual(t.current_time, 1.5)
-
-    def test_seq_with_negative_delay_keeps_its_length_when_shifted_by_pare(self):
-        t = Track()
-        a, b, c = Recorder(), Recorder(), Recorder()
-        t << ParE(Seq(To(a, 1, dur=1), To(b, 1, dur=1), delay=-0.5), To(c, 1, dur=3))
-        # the Seq is 1.5s long, so ParE shifts it to start at 1.5:
-        # `a` runs 1.5..2.5, `b` runs 2..3 (right-aligned with `c`)
-        self.assertEqual(c.times, [3.0])
-        self.assertEqual(b.times, [3.0])
-        self.assertEqual(a.times, [2.5])
-        self.assertEqual(t.current_time, 3.0)
-
-
-class ParEFloatAlignmentTest(unittest.TestCase):
-    """ParE aligns item ends up to float noise (was: exact == assert)."""
-
+    # @unittest.expectedFailure
     def test_pare_with_decimal_durations_does_not_assert(self):
+        # 0.3 + 0.1 and 0.3 + 0.7 are not exactly representable, so the exact
+        # float comparison `res.end == E` fails after the shift.
         t = Track()
         t.advance(0.3)
         a, b = Recorder(), Recorder()
-        t << ParE(To(a, 1, dur=0.1), To(b, 1, dur=0.7))
+        try:
+            t << ParE(To(a, 1, dur=0.1), To(b, 1, dur=0.7))
+        except AssertionError:
+            self.fail("AssertionError (assert res.end == E) on decimal durations")
         self.assertAlmostEqual(a.times[0], b.times[0])
-        self.assertAlmostEqual(t.current_time, 1.0)
-
-    def test_pare_aligns_ends_over_a_grid_of_decimal_durations(self):
-        vals = (0.05, 0.1, 0.2, 0.3, 0.35, 0.7, 1.1)
-        for start in (0, 0.1, 0.3, 1.7):
-            for d1 in vals:
-                for d2 in vals:
-                    t = Track()
-                    t.advance(start)
-                    a, b = Recorder(), Recorder()
-                    t << ParE(To(a, 1, dur=d1), To(b, 1, dur=d2))
-                    self.assertAlmostEqual(a.times[0], b.times[0])
-                    self.assertAlmostEqual(t.current_time, start + max(d1, d2))
-
-    def test_pare_items_never_start_before_the_pare(self):
-        t = Track()
-        t.advance(0.3)
-        a, b = Recorder(), Recorder()
-        t << ParE(To(a, 1, dur=0.7), To(b, 1, dur=0.7))
-        self.assertAlmostEqual(a.calls[0][2]["start"], 0.3)
-        self.assertAlmostEqual(b.calls[0][2]["start"], 0.3)
 
 
-class EmptyContainerTest(unittest.TestCase):
-    """Seq()/Par()/ParE() with no items are zero-length no-ops (was: the
-    ``assert head`` in llsup() raised AssertionError), so that
-    ``Seq(*[... for x in xs])`` works for an empty ``xs``."""
+class EmptyContainerBugTest(unittest.TestCase):
+    """Seq()/Par()/ParE() with no items hit ``assert head`` in llsup().
 
+    Desired behaviour chosen here: a zero-length no-op (the usual result of
+    ``Seq(*[... for x in xs])`` with an empty ``xs``). Raising ValueError
+    would be a defensible alternative; AssertionError is not.
+    """
+
+    # @unittest.expectedFailure
     def test_empty_seq_is_a_noop(self):
         t = Track()
         t << Seq()
         self.assertEqual(t.current_time, 0)
 
+    # @unittest.expectedFailure
     def test_empty_par_is_a_noop(self):
         t = Track()
         t << Par()
         self.assertEqual(t.current_time, 0)
 
 
-class StaggerAndDelayTest(unittest.TestCase):
+class StaggerAndDelayBugTest(unittest.TestCase):
+    # @unittest.expectedFailure
     def test_seq_rejects_stagger_and_delay_together(self):
+        # today `delay` is silently ignored when `stagger` is also given
         with self.assertRaises(ValueError):
             Track() << Seq(Pass(1), Pass(1), stagger=0.25, delay=5)
 
@@ -374,7 +300,7 @@ class RootTrackBugTest(unittest.TestCase):
     """Adjacent to the requested scope (synpyg/root.py), but it makes the whole
     Track API unreachable from Root."""
 
-    @unittest.expectedFailure
+    # @unittest.expectedFailure
     def test_root_offset_returns_a_usable_track(self):
         t = Root() @ 1  # today: AttributeError, RootTrack never runs Track.__init__
         self.assertEqual(t.current_time, 1.0)

@@ -152,6 +152,31 @@ class Animated(WithFields):
         w.value = v = self.kind.coerce(value)
         self._reject_self_reference(v)
         w._assign_given(**kwargs)  # None leaves a field unset, as in Animated(...)
+
+        # A To() action supplies its start time as well as its end time. Add a
+        # waypoint carrying the value already in effect at that start, so the
+        # interpolation begins there rather than at an earlier keyframe.
+        hold = None
+        if start is not None:
+            start = tosec(start, fps)
+            if start > t and not _same_time(start, t):
+                raise ValueError(
+                    f"start time {start!r}s is after waypoint time {t!r}s"
+                )
+            if not _same_time(start, t) and self.waypoints:
+                at_start = [
+                    wp
+                    for wp in self.waypoints
+                    if wp.time <= start or _same_time(wp.time, start)
+                ]
+                if at_start and not any(
+                    _same_time(wp.time, start) for wp in self.waypoints
+                ):
+                    previous = max(reversed(at_start), key=lambda wp: wp.time)
+                    hold = Waypoint()
+                    hold.time = start
+                    hold.value = previous.value
+
         if add:
             if not self.waypoints:
                 raise ValueError("No previous waypoint")
@@ -166,9 +191,13 @@ class Animated(WithFields):
                 )
             w.value = v = self.kind.add(last.value, v)
             if same:
+                if hold is not None:
+                    self.waypoints.append(hold)
                 last.value = v
                 last._assign_given(**kwargs)
                 return self
+        if hold is not None:
+            self.waypoints.append(hold)
         self.waypoints.append(w)
         return self
 

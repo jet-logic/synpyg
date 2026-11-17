@@ -43,7 +43,6 @@ class TrackTimeValidationTests(unittest.TestCase):
 
 
 class SequenceValidationTests(unittest.TestCase):
-    @unittest.expectedFailure
     def test_non_finite_stagger_and_delay_fail_before_side_effects(self):
         for option in ("stagger", "delay"):
             for value in (float("nan"), float("inf"), -float("inf")):
@@ -61,7 +60,7 @@ class SequenceValidationTests(unittest.TestCase):
 
 
 class AnimatedStartTimeTests(unittest.TestCase):
-    @unittest.expectedFailure
+    # @unittest.expectedFailure
     def test_to_holds_previous_value_until_its_start_time(self):
         animated = Real.new_animated().add_waypoint(0, 0.0)
         track = Track()

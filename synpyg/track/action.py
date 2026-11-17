@@ -22,6 +22,16 @@ def _check_dur(dur: Optional[float]) -> Optional[float]:
     return dur
 
 
+def _check_offset(offset: Optional[float], name: str) -> Optional[float]:
+    """Coerce a sequence offset to float and reject non-finite values."""
+    if offset is None:
+        return None
+    offset = offset * 1.0
+    if not math.isfinite(offset):
+        raise ValueError(f"Invalid {name} {offset}")
+    return offset
+
+
 def PassA(track: "Track", dur: float = 1, **kwargs) -> Resolver:
     dur = _check_dur(dur)
 
@@ -78,8 +88,8 @@ def SeqA(
     if stagger is not None and delay is not None:
         raise ValueError("stagger and delay are mutually exclusive")
     _hint_dur = _check_dur(dur)
-    _stagger = None if stagger is None else (stagger * 1.0)
-    _delay = None if delay is None else (delay * 1.0)
+    _stagger = _check_offset(stagger, "stagger")
+    _delay = _check_offset(delay, "delay")
     res_head = llsup(track, *args)
 
     def resolve(start: float, base_frame: float, hint_dur: float):

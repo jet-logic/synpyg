@@ -3,7 +3,8 @@ from .track.track import Track
 
 
 class RootTrack(Track):
-    def __init__(self, root: "Root"):
+    def __init__(self, root: "Root", **kwargs):
+        super().__init__(**kwargs)
         self.root = root
 
 
