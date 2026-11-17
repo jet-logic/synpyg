@@ -1,8 +1,20 @@
+import math
+
 from .attrs import FloatAttr, StringAttr, StringEnumAttr, TimeAttr
 from .ref import Ref
 from .timeutil import tosec
 from .value import Value, ValueKind
 from .base import WithFields, WithXML
+
+# Times closer than this are the same instant: 0.1 + 0.2 and 0.3 differ by
+# float noise only. Well below any frame duration, well above float error.
+_TIME_ABS_TOL = 1e-9
+_TIME_REL_TOL = 1e-12
+
+
+def _same_time(a: float, b: float) -> bool:
+    return math.isclose(a, b, rel_tol=_TIME_REL_TOL, abs_tol=_TIME_ABS_TOL)
+
 
 VALID_INTERPOLATIONS = (
     "auto",
@@ -137,13 +149,14 @@ class Animated(WithFields):
             # The previous waypoint is the latest in time (the last one
             # inserted, among equal times), not simply the last one inserted.
             last = max(reversed(self.waypoints), key=lambda wp: wp.time)
-            if t < last.time:
+            same = _same_time(t, last.time)
+            if t < last.time and not same:
                 raise ValueError(
                     f"time must be incremental: {t!r}s is before the "
                     f"previous waypoint at {last.time!r}s"
                 )
             w.value = v = self.kind.add(last.value, v)
-            if t == last.time:
+            if same:
                 last.value = v
                 last._assign_given(**kwargs)
                 return self

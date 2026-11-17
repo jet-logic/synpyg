@@ -197,7 +197,6 @@ class Oddities(unittest.TestCase):
         a = Animated(Real).add_waypoint(0, 1, before=None)
         self.assertNotIn("before", xml(a)[0].attrib)
 
-    @expectedFailure
     def test_float_noise_does_not_break_incremental_check(self):
         a = Animated(Real)
         a.add_waypoint(0.1 + 0.2, 1)  # 0.30000000000000004
@@ -242,6 +241,36 @@ class NoneKwargAndReprGuards(unittest.TestCase):
         a.add_waypoint(0, Ref(b))
         b.add_waypoint(0, Ref(a))
         self.assertIn("Ref(Animated(Real, id='b'", repr(a.waypoints[0]))
+
+
+class TimeToleranceGuards(unittest.TestCase):
+    def test_float_noise_merges_into_the_same_waypoint(self):
+        a = Animated(Real)
+        a.add_waypoint(0.1 + 0.2, 1)
+        a.add_waypoint(0.3, 2, add=True)
+        self.assertEqual(len(a.waypoints), 1)
+        self.assertEqual(a.waypoints[0].value.data, 3.0)
+
+    def test_noise_in_the_other_direction_also_merges(self):
+        a = Animated(Real).add_waypoint(0.3, 1).add_waypoint(0.1 + 0.2, 2, add=True)
+        self.assertEqual(pairs(a), [(0.3, 3.0)])
+
+    def test_real_gaps_are_still_rejected(self):
+        a = Animated(Real).add_waypoint(1, 1)
+        for earlier in (0.999, 0.999999, 1 - 1e-6):
+            with self.subTest(earlier=earlier):
+                with self.assertRaisesRegex(ValueError, "incremental"):
+                    a.add_waypoint(earlier, 1, add=True)
+
+    def test_a_real_gap_forward_is_a_new_waypoint(self):
+        a = Animated(Real).add_waypoint(1, 1).add_waypoint(1 + 1e-6, 1, add=True)
+        self.assertEqual(len(a.waypoints), 2)
+
+    def test_tolerance_scales_for_large_times(self):
+        t = 1e6
+        a = Animated(Real).add_waypoint(t + 0.1 + 0.2, 1)
+        a.add_waypoint(t + 0.3, 1, add=True)
+        self.assertEqual(len(a.waypoints), 1)
 
 
 # ---------------------------------------------------------------------------
