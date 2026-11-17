@@ -272,31 +272,80 @@ class DurationEdgeCasesTest(unittest.TestCase):
         Track() << Seq(Pass(1), Pass(1), delay=0)
 
 
-class AssertAsValidationBugTest(unittest.TestCase):
-    """Negative offsets are clamped to the track's base time, not to the Seq's
-    own start, so nested items can begin before their Seq (and ``assert``
-    statements that depend on this vanish under -O)."""
+class NegativeOffsetTest(unittest.TestCase):
+    """Negative stagger/delay overlap items but never reach back before the
+    Seq's own start (was: clamped to the track's base time, so nested items
+    started early and ``assert e >= start`` could fire)."""
 
-    @unittest.expectedFailure
     def test_nested_seq_with_negative_delay_does_not_start_items_early(self):
         t = Track()
         a, b = Recorder(), Recorder()
         t << Seq(Pass(1), Seq(To(a, 1, dur=0.25), To(b, 1, dur=0.25), delay=-0.5))
         # the inner Seq starts at 1s; `b` must not start before that
-        self.assertGreaterEqual(b.calls[0][2]["start"], 1.0)  # today: 0.75
+        self.assertGreaterEqual(b.calls[0][2]["start"], 1.0)
 
-    @unittest.expectedFailure
+    def test_nested_seq_with_negative_delay_does_not_assert(self):
+        t = Track()
+        t << Seq(Pass(1), Seq(Pass(0), Pass(0), delay=-0.5))
+        self.assertGreaterEqual(t.current_time, 1.0)
+
+    def test_nested_seq_with_negative_stagger_does_not_start_items_early(self):
+        t = Track()
+        a, b = Recorder(), Recorder()
+        t << Seq(Pass(2), Seq(To(a, 1, dur=1), To(b, 1, dur=1), stagger=-0.5))
+        self.assertEqual(a.calls[0][2]["start"], 2.0)
+        self.assertGreaterEqual(b.calls[0][2]["start"], 2.0)
+
+    def test_negative_delay_overlaps_items_at_top_level(self):
+        t = Track()
+        a, b = Recorder(), Recorder()
+        t << Seq(To(a, 1, dur=1), To(b, 1, dur=1), delay=-0.5)
+        self.assertEqual((a.times, b.times), ([1.0], [1.5]))
+        self.assertEqual(b.calls[0][2]["start"], 0.5)
+        self.assertEqual(t.current_time, 1.5)
+
+    def test_seq_with_negative_delay_keeps_its_length_when_shifted_by_pare(self):
+        t = Track()
+        a, b, c = Recorder(), Recorder(), Recorder()
+        t << ParE(Seq(To(a, 1, dur=1), To(b, 1, dur=1), delay=-0.5), To(c, 1, dur=3))
+        # the Seq is 1.5s long, so ParE shifts it to start at 1.5:
+        # `a` runs 1.5..2.5, `b` runs 2..3 (right-aligned with `c`)
+        self.assertEqual(c.times, [3.0])
+        self.assertEqual(b.times, [3.0])
+        self.assertEqual(a.times, [2.5])
+        self.assertEqual(t.current_time, 3.0)
+
+
+class ParEFloatAlignmentTest(unittest.TestCase):
+    """ParE aligns item ends up to float noise (was: exact == assert)."""
+
     def test_pare_with_decimal_durations_does_not_assert(self):
-        # 0.3 + 0.1 and 0.3 + 0.7 are not exactly representable, so the exact
-        # float comparison `res.end == E` fails after the shift.
         t = Track()
         t.advance(0.3)
         a, b = Recorder(), Recorder()
-        try:
-            t << ParE(To(a, 1, dur=0.1), To(b, 1, dur=0.7))
-        except AssertionError:
-            self.fail("AssertionError (assert res.end == E) on decimal durations")
+        t << ParE(To(a, 1, dur=0.1), To(b, 1, dur=0.7))
         self.assertAlmostEqual(a.times[0], b.times[0])
+        self.assertAlmostEqual(t.current_time, 1.0)
+
+    def test_pare_aligns_ends_over_a_grid_of_decimal_durations(self):
+        vals = (0.05, 0.1, 0.2, 0.3, 0.35, 0.7, 1.1)
+        for start in (0, 0.1, 0.3, 1.7):
+            for d1 in vals:
+                for d2 in vals:
+                    t = Track()
+                    t.advance(start)
+                    a, b = Recorder(), Recorder()
+                    t << ParE(To(a, 1, dur=d1), To(b, 1, dur=d2))
+                    self.assertAlmostEqual(a.times[0], b.times[0])
+                    self.assertAlmostEqual(t.current_time, start + max(d1, d2))
+
+    def test_pare_items_never_start_before_the_pare(self):
+        t = Track()
+        t.advance(0.3)
+        a, b = Recorder(), Recorder()
+        t << ParE(To(a, 1, dur=0.7), To(b, 1, dur=0.7))
+        self.assertAlmostEqual(a.calls[0][2]["start"], 0.3)
+        self.assertAlmostEqual(b.calls[0][2]["start"], 0.3)
 
 
 class EmptyContainerTest(unittest.TestCase):

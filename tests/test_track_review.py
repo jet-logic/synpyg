@@ -31,7 +31,7 @@ class TestTrackBugs(unittest.TestCase):
         start, end, val = p.waypoints[0]
         self.assertEqual(end, 10.0)
 
-    @unittest.expectedFailure
+    # @unittest.expectedFailure
     def test_advance_error_message_and_limits(self):
         """track.advance has a typo and an arbitrary hard limit."""
         t = Track()

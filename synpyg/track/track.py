@@ -14,15 +14,20 @@ class Track:
     ):
         if not (math.isfinite(hint_dur) and hint_dur >= 0):
             raise ValueError(f"Invalid hint_dur {hint_dur}")
+        if not (math.isfinite(current_time) and current_time >= 0):
+            raise ValueError(f"Invalid time {current_time}")
         self.hint_dur = hint_dur
         self.current_time = current_time
         self.fps = fps
         self.easing = easing
 
     def advance(self, t: float):
-        if not (t >= 0 and t < 2147483648.0):
+        if not (math.isfinite(t) and t >= 0):
             raise ValueError(f"Invalid time {t}")
-        self.current_time += t
+        new_time = self.current_time + t
+        if not math.isfinite(new_time):
+            raise ValueError(f"Invalid resulting time {new_time}")
+        self.current_time = new_time
         return self
 
     def feed(self, cur: "Resolver"):

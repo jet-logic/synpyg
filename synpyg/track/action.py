@@ -1,5 +1,15 @@
+import math
 from typing import Optional, Protocol, Any, Union
 from .track import Finalizer, Proxy, RangeEtc, Resolver, Track
+
+
+# Same tolerances as Animated uses for "the same instant": float noise only.
+_TIME_ABS_TOL = 1e-9
+_TIME_REL_TOL = 1e-12
+
+
+def _same_time(a: float, b: float) -> bool:
+    return math.isclose(a, b, rel_tol=_TIME_REL_TOL, abs_tol=_TIME_ABS_TOL)
 
 
 def _check_dur(dur: Optional[float]) -> Optional[float]:
@@ -80,7 +90,6 @@ def SeqA(
         res: Optional[Wrapper] = res_head
         e = start  # ending time
         if (o := _stagger) is not None:
-            B = base_frame  # base time
             s = start  # starting time
             while res:
                 p, q, f = res(s, base_frame, hint_dur)
@@ -89,10 +98,11 @@ def SeqA(
                 res.end = q
                 res.call = f
                 res = res.next
-                s = max(s + o, B)  # next start time
+                # next start time; a negative stagger never reaches back
+                # before the Seq itself
+                s = max(s + o, start)
 
         elif (o := _delay) is not None:
-            B = base_frame  # base time
             s = start  # starting time
             while res:
                 p, q, f = res(s, base_frame, hint_dur)
@@ -101,7 +111,9 @@ def SeqA(
                 res.end = q
                 res.call = f
                 res = res.next
-                s = max(q + o, B)  # next start: relative to this item's own end
+                # next start: relative to this item's own end; a negative
+                # delay (overlap) never reaches back before the Seq itself
+                s = max(q + o, start)
         else:
             while res:
                 p, e, f = res(e, base_frame, hint_dur)
@@ -176,13 +188,14 @@ def ParA(
             assert dur is not None
             res = res_head
             while res:
-                if res.end != E:
+                if not _same_time(res.end, E):
                     p, q, f = res(E - (res.end - res.start), base_frame, dur)
                     res.start = p
                     res.end = q
                     res.call = f
-                assert res.end == E
-                assert res.start >= start
+                # internal invariants, up to float noise
+                assert _same_time(res.end, E)
+                assert res.start >= start or _same_time(res.start, start)
                 res = res.next
         assert E >= start
 
