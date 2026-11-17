@@ -1,7 +1,7 @@
 import unittest
 from xml.etree import ElementTree as ET
 
-from synpyg.animated import Animated, Waypoint
+from synpyg.animated import Waypoint
 from synpyg.base import Property
 from synpyg.layer import CircleLayer
 from synpyg.ref import Ref

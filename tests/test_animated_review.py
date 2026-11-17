@@ -13,7 +13,6 @@ Run from the project root (the directory containing ``synpyg/``)::
 """
 
 import unittest
-from unittest import expectedFailure
 from xml.etree import ElementTree as ET
 
 from synpyg.animated import Animated, Waypoint
@@ -54,7 +53,6 @@ class RefCycleBugs(unittest.TestCase):
         b.add_waypoint(0, Ref(a))
         with self.assertRaises(ValueError):
             xml(c)
-
 
     def test_self_reference_set_directly_rejected_on_serialize(self):
         a = Animated(Real, id="x")
@@ -353,8 +351,14 @@ class WorkingBehaviour(unittest.TestCase):
 
     def test_waypoint_attribute_names(self):
         a = Animated(Real).add_waypoint(
-            1, 1, before="clamped", after="auto", tension=0.5,
-            temporal_tension=0.25, continuity=0.1, bias=-0.2,
+            1,
+            1,
+            before="clamped",
+            after="auto",
+            tension=0.5,
+            temporal_tension=0.25,
+            continuity=0.1,
+            bias=-0.2,
         )
         el = xml(a)[0]
         self.assertEqual(el.get("temporal-tension"), "0.25")

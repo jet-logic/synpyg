@@ -104,7 +104,9 @@ class Animated(WithFields):
     def _check_waypoint(self, w) -> None:
         """Validate a waypoint that may have bypassed ``add_waypoint``."""
         if not isinstance(w, Waypoint):
-            raise TypeError(f"waypoints must hold Waypoint objects, got {type(w).__name__}")
+            raise TypeError(
+                f"waypoints must hold Waypoint objects, got {type(w).__name__}"
+            )
         value = w.__dict__.get("value")
         if value is None:
             return  # Waypoint.to_xml_element reports the missing value
@@ -134,7 +136,14 @@ class Animated(WithFields):
         return element
 
     def add_waypoint(
-        self, time, value, *, fps: float | None = None, add=False, **kwargs
+        self,
+        time,
+        value,
+        *,
+        add=False,
+        start: float | None = None,  # TODO
+        fps: float | None = None,
+        **kwargs,
     ):
         """Add a waypoint. ``time`` may be seconds or a time string; frames
         ("12f") need ``fps``."""

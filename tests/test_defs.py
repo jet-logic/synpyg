@@ -3,7 +3,6 @@ import tempfile
 import unittest
 from xml.etree import ElementTree as ET
 
-from synpyg.animated import Animated
 from synpyg.canvas import Canvas
 from synpyg.ref import Ref
 from synpyg.value import Integer, Real, Vector
@@ -100,8 +99,13 @@ class DefsXmlTest(unittest.TestCase):
         root = tree(c)
         self.assertEqual([e.tag for e in root], ["defs", "layer"])
         real, anim = root.find("defs")  # type: ignore
-        self.assertEqual((real.tag, real.get("id"), real.get("value")), ("real", "glow", "1.5"))
-        self.assertEqual((anim.tag, anim.get("id"), anim.get("type")), ("animated", "pulse", "vector"))
+        self.assertEqual(
+            (real.tag, real.get("id"), real.get("value")), ("real", "glow", "1.5")
+        )
+        self.assertEqual(
+            (anim.tag, anim.get("id"), anim.get("type")),
+            ("animated", "pulse", "vector"),
+        )
 
     def test_ref_in_a_param_points_at_the_export(self):
         c = Canvas()
@@ -143,7 +147,9 @@ class DefsXmlTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "out.sif")
             c.save_xml(path)
-            self.assertEqual(ET.parse(path).getroot().find("defs/real").get("id"), "glow")  # type: ignore
+            self.assertEqual(
+                ET.parse(path).getroot().find("defs/real").get("id"), "glow"
+            )  # type: ignore
 
     def test_exported_animated_may_reference_another_export(self):
         c = Canvas()

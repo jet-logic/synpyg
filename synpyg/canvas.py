@@ -159,7 +159,9 @@ class Canvas(WithFields, WithXML, Grouping):
         for where, value in slots:
             if isinstance(value, Ref):
                 t = value.target
-                if not isinstance(t, str) and not any(t is n for n in self._defs.values()):
+                if not isinstance(t, str) and not any(
+                    t is n for n in self._defs.values()
+                ):
                     raise ValueError(
                         f"{value!r} in {where} is not exported from this canvas; "
                         f"call Canvas.export()"
