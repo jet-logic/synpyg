@@ -34,6 +34,10 @@ class Waypoint(WithFields, WithXML):
             raise ValueError(
                 "Waypoint has no value" + (f" (time={at!r})" if at is not None else "")
             ) from None
+        if not isinstance(value, (Value, Ref)):
+            raise TypeError(
+                f"Waypoint value must be a Value or a Ref, got {type(value).__name__}"
+            )
         if isinstance(value, Ref):  # `use` and a child element exclude each other
             return et.Element("waypoint", {**self._xml_attrs(), "use": value.use})
         element = et.Element("waypoint", self._xml_attrs())
@@ -73,9 +77,30 @@ class Animated(WithFields):
         if isinstance(value, Ref) and value.target is self:
             raise ValueError("an Animated cannot refer to itself")
 
+    def _check_waypoint(self, w) -> None:
+        """Validate a waypoint that may have bypassed ``add_waypoint``."""
+        if not isinstance(w, Waypoint):
+            raise TypeError(f"waypoints must hold Waypoint objects, got {type(w).__name__}")
+        value = w.__dict__.get("value")
+        if value is None:
+            return  # Waypoint.to_xml_element reports the missing value
+        at = w.__dict__.get("time")
+        if isinstance(value, Ref):
+            try:
+                value.check_kind(self.kind)
+            except ValueError as e:
+                raise ValueError(f"waypoint at {at!r}s: {e}") from None
+            self._reject_self_reference(value)
+        elif isinstance(value, Value) and not isinstance(value, self.kind.value_type):
+            raise ValueError(
+                f"waypoint at {at!r}s holds {type(value).__name__}, "
+                f"but this Animated is of kind {self.kind.name}"
+            )
+        # anything else is reported by Waypoint.to_xml_element
+
     def to_xml_element(self, et):
-        for w in self.waypoints:  # also catches waypoints set without add_waypoint
-            self._reject_self_reference(w.__dict__.get("value"))
+        for w in self.waypoints:  # the list is public, so don't trust it
+            self._check_waypoint(w)
         attrs = {"type": self.kind.tag, **self._xml_attrs()}
         element = et.Element("animated", attrs)
 

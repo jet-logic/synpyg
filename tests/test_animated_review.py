@@ -55,7 +55,6 @@ class RefCycleBugs(unittest.TestCase):
         with self.assertRaises(ValueError):
             xml(c)
 
-
     def test_self_reference_set_directly_rejected_on_serialize(self):
         a = Animated(Real, id="x")
         w = Waypoint()
@@ -128,10 +127,9 @@ class EmptyIdBug(unittest.TestCase):
 
 
 class BypassingValidationBugs(unittest.TestCase):
-    """BUG 4: only ``add_waypoint`` validates; direct use of the public
+    """BUG 3 (fixed): only ``add_waypoint`` validated; direct use of the public
     ``waypoints`` list / ``Waypoint.value`` is accepted and serialized."""
 
-    @expectedFailure
     def test_wrong_kind_waypoint_rejected_on_serialize(self):
         a = Animated(Vector)
         w = Waypoint()
@@ -141,13 +139,45 @@ class BypassingValidationBugs(unittest.TestCase):
         with self.assertRaises(ValueError):
             xml(a)
 
-    @expectedFailure
     def test_non_value_waypoint_reports_value_error_not_attribute_error(self):
         w = Waypoint()
         w.time = 0
         w.value = 5
         with self.assertRaises((ValueError, TypeError)):
             xml(w)
+
+
+class BypassGuards(unittest.TestCase):
+    def test_wrong_kind_ref_rejected_on_serialize(self):
+        a = Animated(Vector)
+        w = Waypoint()
+        w.time = 0
+        w.value = Ref(Real(1, id="r"))
+        a.waypoints.append(w)
+        with self.assertRaisesRegex(ValueError, "waypoint at 0.0s"):
+            xml(a)
+
+    def test_non_waypoint_in_list_rejected_on_serialize(self):
+        a = Animated(Real)
+        a.waypoints.append("nope")  # type: ignore[arg-type]
+        with self.assertRaises(TypeError):
+            xml(a)
+
+    def test_valid_hand_built_waypoint_serializes(self):
+        a = Animated(Vector)
+        w = Waypoint()
+        w.time = 1
+        w.value = Vector([1, 2])
+        a.waypoints.append(w)
+        self.assertEqual(xml(a)[0].get("time"), "1s")
+
+    def test_valueless_waypoint_in_list_reports_missing_value(self):
+        a = Animated(Real)
+        w = Waypoint()
+        w.time = 1
+        a.waypoints.append(w)
+        with self.assertRaisesRegex(ValueError, "no value"):
+            xml(a)
 
 
 # ---------------------------------------------------------------------------
@@ -265,8 +295,14 @@ class WorkingBehaviour(unittest.TestCase):
 
     def test_waypoint_attribute_names(self):
         a = Animated(Real).add_waypoint(
-            1, 1, before="clamped", after="auto", tension=0.5,
-            temporal_tension=0.25, continuity=0.1, bias=-0.2,
+            1,
+            1,
+            before="clamped",
+            after="auto",
+            tension=0.5,
+            temporal_tension=0.25,
+            continuity=0.1,
+            bias=-0.2,
         )
         el = xml(a)[0]
         self.assertEqual(el.get("temporal-tension"), "0.25")
