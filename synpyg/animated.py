@@ -55,12 +55,19 @@ class Animated(WithFields):
 
         kind = ValueKind.of(kind)
         if not kind.tag:
-            raise NotImplementedError(f"{kind.name} has no tag and cannot be animated")
+            raise TypeError(f"{kind.name} has no tag and cannot be animated")
 
         self.kind = kind
         self.waypoints: list[Waypoint] = []
 
         self._assign_given(id=id, guid=guid, interpolation=interpolation)
+
+    def _xml_attrs(self) -> dict[str, str]:
+        attrs = super()._xml_attrs()
+        for k in ("id", "guid"):  # an empty id means "none", as for Value
+            if attrs.get(k) == "":
+                del attrs[k]
+        return attrs
 
     def to_xml_element(self, et):
         attrs = {"type": self.kind.tag, **self._xml_attrs()}
@@ -77,22 +84,25 @@ class Animated(WithFields):
         """Add a waypoint. ``time`` may be seconds or a time string; frames
         ("12f") need ``fps``."""
         w = Waypoint()
-        w.time = tosec(time, fps)
+        w.time = t = tosec(time, fps)
         w.value = v = self.kind.coerce(value)
         w._assign(**kwargs)
         if add:
-            try:
-                last = self.waypoints[-1]
-            except IndexError:
-                raise ValueError(f"Cant add")
-            else:
-                w.value = self.kind.add(last.value, v)
-                f = last.time
-                if time < f:
-                    raise ValueError("time must be incremental")
-                elif time == f:
-                    last.value = value
-                    return last
+            if not self.waypoints:
+                raise ValueError("No previous waypoint")
+            # The previous waypoint is the latest in time (the last one
+            # inserted, among equal times), not simply the last one inserted.
+            last = max(reversed(self.waypoints), key=lambda wp: wp.time)
+            if t < last.time:
+                raise ValueError(
+                    f"time must be incremental: {t!r}s is before the "
+                    f"previous waypoint at {last.time!r}s"
+                )
+            w.value = v = self.kind.add(last.value, v)
+            if t == last.time:
+                last.value = v
+                last._assign(**kwargs)
+                return self
         self.waypoints.append(w)
         return self
 

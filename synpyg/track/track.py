@@ -18,6 +18,8 @@ class Track:
         self.easing = easing
 
     def advance(self, t: float):
+        if not (t >= 0 and t < 2147483648.0):
+            raise ValueError(f"Invalide time {t}")
         self.end_frame += t
         return self
 

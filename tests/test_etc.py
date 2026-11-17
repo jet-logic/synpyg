@@ -45,7 +45,7 @@ class Test(unittest.TestCase):
 
     def test_constructors_validate(self):
         for bad in [
-            lambda: Boolean(1),
+            lambda: Boolean(1),  # type: ignore
             lambda: Integer(2.7),
             lambda: Integer(True),
             lambda: Real("abc"),
@@ -99,11 +99,11 @@ class Test(unittest.TestCase):
             mbl.subsampling_type.set_value(3)
 
             anim = cir.origin.as_animated()
-            anim.add_waypoint(
-                0, Vector([-6, 0]), before="clamped", after="clamped"
-            ).add_waypoint(1, Vector([-6, 0])).add_waypoint(
-                4, Vector([6, 0]), before="clamped", after="clamped"
-            ).add_waypoint(5, Vector([6, 0]), before="clamped", after="clamped")
+            anim.add_waypoint(0, Vector([-6, 0]), before="clamped", after="clamped")
+            anim.add_waypoint(1, Vector([-6, 0]))
+            anim.add_waypoint(3, Vector([-2, -4]), add=True)
+            anim.add_waypoint(4, Vector([6, 0]), before="clamped", after="clamped")
+            anim.add_waypoint(5, Vector([6, 0]), before="clamped", after="clamped")
 
             root.save_xml(out)
             self.assertTrue(out.is_file())
@@ -125,7 +125,7 @@ class Test(unittest.TestCase):
             group = canvas.findall("layer")[1]
             circle = group.find(".//layer[@type='circle']")
             self.assertIsNotNone(circle)
-            self.assertEqual(len(circle.findall(".//waypoint")), 4)  # type: ignore
+            self.assertEqual(len(circle.findall(".//waypoint")), 5)  # type: ignore
 
 
 if __name__ == "__main__":

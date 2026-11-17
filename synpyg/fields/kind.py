@@ -24,6 +24,5 @@ class Kind(Generic[T]):
         """Serialize an already-coerced value."""
         return str(value)
 
-    def add(self, a: T, b: T) -> str:
-        """Serialize an already-coerced value."""
+    def add(self, a: T, b: T) -> T:
         raise NotImplementedError()

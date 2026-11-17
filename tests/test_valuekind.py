@@ -83,7 +83,7 @@ class TakesAKindTest(unittest.TestCase):
     def test_tagless_kinds_cannot_be_animated(self):
         for cls in (Value, Const):
             with self.subTest(cls.__name__):
-                with self.assertRaises(NotImplementedError):
+                with self.assertRaises(TypeError):
                     Animated(ValueKind.of(cls))
 
     def test_animated_from_a_separately_built_kind_is_accepted(self):

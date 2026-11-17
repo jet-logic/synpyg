@@ -179,7 +179,7 @@ class NewAnimatedTest(unittest.TestCase):
 
         for cls in (Value, Const, _Floats):
             with self.subTest(cls.__name__):
-                with self.assertRaises(NotImplementedError):
+                with self.assertRaises(TypeError):
                     cls.new_animated()
 
 

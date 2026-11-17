@@ -53,6 +53,14 @@ class Value(WithFields, WithXML):
         """Create an :class:`Animated` value node that produces values of ``cls``."""
         return cls.as_kind().new_animated()
 
+    def add(self, other: "Value") -> Self:
+        """Return a new value that is ``self + other`` (used by ``add=True`` waypoints).
+
+        Values are not addable by default; addable subclasses override this.
+        The result carries no ``id``/``guid``: it is a new, unexported value.
+        """
+        raise TypeError(f"{type(self).__name__} values cannot be added")
+
     def as_prop(self, name=""):
         from .base import Property
 
@@ -96,12 +104,26 @@ class Const(Value):
         )
 
 
-class Real(Const):
+class _Summable(Const):
+    """A ``Const`` whose ``data`` can be added: numbers add, tuples add componentwise."""
+
+    def add(self, other: Value) -> Self:
+        if type(other) is not type(self):
+            raise TypeError(
+                f"cannot add {type(other).__name__} to {type(self).__name__}"
+            )
+        a, b = self.data, other.data  # type: ignore[attr-defined]
+        if isinstance(a, tuple):
+            return type(self)(tuple(x + y for x, y in zip(a, b)))
+        return type(self)(a + b)
+
+
+class Real(_Summable):
     tag = "real"
     data_kind = kinds.Number
 
 
-class Integer(Const):
+class Integer(_Summable):
     tag = "integer"
     data_kind = kinds.Integer
 
@@ -119,12 +141,12 @@ class String(Const):
     data_kind = kinds.String
 
 
-class Angle(Const):
+class Angle(_Summable):
     tag = "angle"
     data_kind = kinds.Number
 
 
-class Time(Const):
+class Time(_Summable):
     data: float  # seconds
     tag = "time"
     data_kind = kinds.TimeKind("fps")  # frames ("12f") are resolved with self.fps
@@ -135,7 +157,7 @@ class Time(Const):
         super().__init__(data, **kwargs)
 
 
-class _Floats(Const):
+class _Floats(_Summable):
     data: tuple[float, ...]
 
 
@@ -209,6 +231,22 @@ class ValueKind(Kind[Value]):
 
     def dump(self, value: Value) -> str:
         raise TypeError("a Value serializes as an XML element, not as text")
+
+    def add(self, a: "Value | Ref", b: "Value | Ref") -> Value:
+        """Return ``a + b`` as a new ``Value`` of this kind.
+
+        Both operands must be concrete values of this kind: a ``Ref`` is only
+        a name, so there is nothing to add. Kinds whose values are not
+        addable (``Boolean``, ``String``) raise ``TypeError``.
+        """
+        from .ref import Ref
+
+        for v in (a, b):
+            if isinstance(v, Ref):
+                raise ValueError("cannot add a Ref: it has no value of its own")
+        a = self.value_type.coerce(a)
+        b = self.value_type.coerce(b)
+        return a.add(b)
 
     def new_animated(self) -> "Animated":
         """Create an :class:`Animated` that produces values of this kind."""
