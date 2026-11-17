@@ -69,7 +69,13 @@ class Animated(WithFields):
                 del attrs[k]
         return attrs
 
+    def _reject_self_reference(self, value) -> None:
+        if isinstance(value, Ref) and value.target is self:
+            raise ValueError("an Animated cannot refer to itself")
+
     def to_xml_element(self, et):
+        for w in self.waypoints:  # also catches waypoints set without add_waypoint
+            self._reject_self_reference(w.__dict__.get("value"))
         attrs = {"type": self.kind.tag, **self._xml_attrs()}
         element = et.Element("animated", attrs)
 
@@ -86,6 +92,7 @@ class Animated(WithFields):
         w = Waypoint()
         w.time = t = tosec(time, fps)
         w.value = v = self.kind.coerce(value)
+        self._reject_self_reference(v)
         w._assign(**kwargs)
         if add:
             if not self.waypoints:

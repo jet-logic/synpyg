@@ -35,6 +35,47 @@ def _embedded(container):
             yield from _embedded(layer)
 
 
+def _find_ref_cycle(defs: Mapping[str, Any]) -> list[str] | None:
+    """Return the ids along a cycle of ``Ref``s between exported nodes, else ``None``.
+
+    Only an ``Animated`` can hold a ``Ref`` (in a waypoint), so only exported
+    animations have outgoing edges. Iterative, so a long chain cannot hit the
+    recursion limit.
+    """
+    ids = {id(node): key for key, node in defs.items()}
+
+    def edges(key):
+        node = defs[key]
+        if isinstance(node, Animated):
+            for _, v in _waypoint_slots("", node):
+                if isinstance(v, Ref) and not isinstance(v.target, str):
+                    target = ids.get(id(v.target))
+                    if target is not None:
+                        yield target
+
+    state: dict[str, int] = {}  # 1 = on the current path, 2 = finished
+    for start in defs:
+        if start in state:
+            continue
+        state[start] = 1
+        path = [start]
+        stack = [iter(edges(start))]
+        while stack:
+            for nxt in stack[-1]:
+                seen = state.get(nxt)
+                if seen == 1:
+                    return path[path.index(nxt) :] + [nxt]
+                if seen is None:
+                    state[nxt] = 1
+                    path.append(nxt)
+                    stack.append(iter(edges(nxt)))
+                    break
+            else:
+                state[path.pop()] = 2
+                stack.pop()
+    return None
+
+
 class Canvas(WithFields, WithXML, Grouping):
     version = StringAttr(required=True)
     width = PositiveIntAttr(required=True)
@@ -104,6 +145,7 @@ class Canvas(WithFields, WithXML, Grouping):
 
         Every ``Ref`` to a node must point at one exported here, and a node
         with an id must be exported and referred to, not embedded in a param.
+        Exported nodes may not refer to each other in a cycle.
         """
         slots = []
         for key, node in self._defs.items():
@@ -127,6 +169,8 @@ class Canvas(WithFields, WithXML, Grouping):
                     f"{value!r} in {where} has id {value.id!r} but is embedded; "
                     f"export it and refer to it with Ref(...)"
                 )
+        if cycle := _find_ref_cycle(self._defs):
+            raise ValueError(f"reference cycle: {' -> '.join(cycle)}")
 
     def to_xml_element(self, et: Any):
         self.check_defs()

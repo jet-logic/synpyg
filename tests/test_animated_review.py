@@ -37,15 +37,13 @@ def pairs(anim: Animated):
 
 
 class RefCycleBugs(unittest.TestCase):
-    """BUG 1: waypoint Refs can form cycles that serialize without complaint."""
+    """BUG 1 (fixed): waypoint Refs could form cycles that serialized silently."""
 
-    @expectedFailure
     def test_self_reference_rejected_at_add_waypoint(self):
         a = Animated(Real, id="x")
         with self.assertRaises(ValueError):
             a.add_waypoint(0, Ref(a))
 
-    @expectedFailure
     def test_indirect_reference_cycle_rejected_on_serialize(self):
         # a -> b -> a. Not detectable at add time (ids are resolved lazily),
         # so it has to be caught when the canvas is serialized.
@@ -56,6 +54,51 @@ class RefCycleBugs(unittest.TestCase):
         b.add_waypoint(0, Ref(a))
         with self.assertRaises(ValueError):
             xml(c)
+
+
+    def test_self_reference_set_directly_rejected_on_serialize(self):
+        a = Animated(Real, id="x")
+        w = Waypoint()
+        w.time = 0
+        w.value = Ref(a)  # bypasses add_waypoint
+        a.waypoints.append(w)
+        with self.assertRaisesRegex(ValueError, "itself"):
+            xml(a)
+
+    def test_cycle_error_names_the_path(self):
+        c = Canvas()
+        a = c.export("a", Animated(Real))
+        b = c.export("b", Animated(Real))
+        d = c.export("d", Animated(Real))
+        a.add_waypoint(0, Ref(b))
+        b.add_waypoint(0, Ref(d))
+        d.add_waypoint(0, Ref(b))
+        with self.assertRaisesRegex(ValueError, "b -> d -> b"):
+            xml(c)
+
+    def test_self_cycle_in_canvas_is_rejected(self):
+        c = Canvas()
+        a = c.export("a", Animated(Real))
+        a.waypoints.append(Waypoint()._assign(time=0))
+        a.waypoints[0].value = Ref(a)
+        with self.assertRaises(ValueError):
+            xml(c)
+
+    def test_acyclic_references_still_serialize(self):
+        c = Canvas()
+        base = c.export("base", Animated(Real).add_waypoint(0, 1))
+        mid = c.export("mid", Animated(Real).add_waypoint(0, Ref(base)))
+        top = c.export("top", Animated(Real).add_waypoint(0, Ref(mid)))
+        top.add_waypoint(1, Ref(base))  # diamond, not a cycle
+        uses = [w.get("use") for w in xml(c).iter("waypoint")]
+        self.assertEqual(sorted(u for u in uses if u), ["base", "base", "mid"])
+
+    def test_long_reference_chain_does_not_hit_recursion_limit(self):
+        c = Canvas()
+        prev = c.export("n0", Animated(Real).add_waypoint(0, 1))
+        for i in range(1, 3000):
+            prev = c.export(f"n{i}", Animated(Real).add_waypoint(0, Ref(prev)))
+        xml(c)
 
 
 class AddRelativeBug(unittest.TestCase):
@@ -222,14 +265,8 @@ class WorkingBehaviour(unittest.TestCase):
 
     def test_waypoint_attribute_names(self):
         a = Animated(Real).add_waypoint(
-            1,
-            1,
-            before="clamped",
-            after="auto",
-            tension=0.5,
-            temporal_tension=0.25,
-            continuity=0.1,
-            bias=-0.2,
+            1, 1, before="clamped", after="auto", tension=0.5,
+            temporal_tension=0.25, continuity=0.1, bias=-0.2,
         )
         el = xml(a)[0]
         self.assertEqual(el.get("temporal-tension"), "0.25")
