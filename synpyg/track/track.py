@@ -35,9 +35,17 @@ class Track:
         d = e - s
         if not d >= 0:  # also catches NaN; checked before f() so nothing is emitted
             raise ValueError(f"Invalid duration {d}")
+        # Validate the resulting track time before running the finalizer: a
+        # failed action must not emit waypoints or partially mutate its target.
+        new_time = self.current_time
+        if d < INF:
+            new_time += d
+            if not math.isfinite(new_time):
+                raise ValueError(f"Invalid resulting time {new_time}")
+
         f(self, s, e)
         if d < INF:
-            self.current_time += d
+            self.current_time = new_time
         return self
 
     def sub(self, o: float = 0.0):
@@ -47,6 +55,10 @@ class Track:
 
     def __lshift__(self, action: "Proxy"):
         # <<
+        return self.feed(action(self))
+
+    def __ilshift__(self, action: "Proxy"):
+        # <<=
         return self.feed(action(self))
 
     def __matmul__(self, offset: float):

@@ -3,13 +3,23 @@ from typing import Optional, Protocol, Any, Union
 from .track import Finalizer, Proxy, RangeEtc, Resolver, Track
 
 
-# Same tolerances as Animated uses for "the same instant": float noise only.
+# A fixed absolute tolerance avoids treating increasingly distant timestamps
+# as equal merely because their magnitude is large.
 _TIME_ABS_TOL = 1e-9
-_TIME_REL_TOL = 1e-12
 
 
 def _same_time(a: float, b: float) -> bool:
-    return math.isclose(a, b, rel_tol=_TIME_REL_TOL, abs_tol=_TIME_ABS_TOL)
+    return abs(a - b) <= _TIME_ABS_TOL
+
+
+def _add_time(start: float, duration: float) -> float:
+    """Add a duration without silently turning finite time into infinity."""
+    if math.isinf(duration):
+        return math.inf
+    result = start + duration
+    if not math.isfinite(result):
+        raise ValueError(f"Invalid resulting time {result}")
+    return result
 
 
 def _check_dur(dur: Optional[float]) -> Optional[float]:
@@ -39,7 +49,7 @@ def PassA(track: "Track", dur: float = 1, **kwargs) -> Resolver:
         pass
 
     def resolve(start: float, base_frame: float, hint_dur: float) -> RangeEtc:
-        return start, start + dur, supply
+        return start, _add_time(start, dur), supply
 
     return resolve
 
@@ -67,7 +77,7 @@ def ToA(
         if _dur is None:
             _dur = hint_dur
 
-        _end = start + _dur
+        _end = _add_time(start, _dur)
 
         return start, _end, run
 
@@ -110,7 +120,7 @@ def SeqA(
                 res = res.next
                 # next start time; a negative stagger never reaches back
                 # before the Seq itself
-                s = max(s + o, start)
+                s = max(_add_time(s, o), start)
 
         elif (o := _delay) is not None:
             s = start  # starting time
@@ -123,7 +133,7 @@ def SeqA(
                 res = res.next
                 # next start: relative to this item's own end; a negative
                 # delay (overlap) never reaches back before the Seq itself
-                s = max(q + o, start)
+                s = max(_add_time(q, o), start)
         else:
             while res:
                 p, e, f = res(e, base_frame, hint_dur)

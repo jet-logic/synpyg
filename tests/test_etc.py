@@ -70,9 +70,10 @@ class Test(unittest.TestCase):
             sorted(w.__dict__.keys()), ["before", "temporal_tension", "time", "value"]
         )
 
-    def test_write2(self):
-        root = Root()
-        canvas = root.canvas(begin_time="0f", end_time="5s")
+    # def test_write2(self):
+    #     root = Root()
+    #     canvas = root.canvas(begin_time="0f", end_time="5s")
+    #     cur = root @ 0
 
     def test_write(self):
         root = Root()

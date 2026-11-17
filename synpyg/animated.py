@@ -1,19 +1,16 @@
-import math
-
 from .attrs import FloatAttr, StringAttr, StringEnumAttr, TimeAttr
 from .ref import Ref
 from .timeutil import tosec
 from .value import Value, ValueKind
 from .base import WithFields, WithXML
 
-# Times closer than this are the same instant: 0.1 + 0.2 and 0.3 differ by
-# float noise only. Well below any frame duration, well above float error.
+# A fixed absolute tolerance avoids collapsing distinct instants at large
+# timestamps.
 _TIME_ABS_TOL = 1e-9
-_TIME_REL_TOL = 1e-12
 
 
 def _same_time(a: float, b: float) -> bool:
-    return math.isclose(a, b, rel_tol=_TIME_REL_TOL, abs_tol=_TIME_ABS_TOL)
+    return abs(a - b) <= _TIME_ABS_TOL
 
 
 VALID_INTERPOLATIONS = (
@@ -160,9 +157,7 @@ class Animated(WithFields):
         if start is not None:
             start = tosec(start, fps)
             if start > t and not _same_time(start, t):
-                raise ValueError(
-                    f"start time {start!r}s is after waypoint time {t!r}s"
-                )
+                raise ValueError(f"start time {start!r}s is after waypoint time {t!r}s")
             if not _same_time(start, t) and self.waypoints:
                 at_start = [
                     wp

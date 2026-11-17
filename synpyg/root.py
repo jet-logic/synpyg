@@ -9,7 +9,6 @@ class RootTrack(Track):
 
 
 class Root:
-
     def __init__(self):
         self.fps = 24.0
         self.size = (480, 270)
@@ -23,7 +22,7 @@ class Root:
             width=self.size[0],
             height=self.size[1],
             view_box=self.view_box,
-            **kwargs
+            **kwargs,
         )
         return c
 

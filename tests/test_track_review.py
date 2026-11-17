@@ -1,6 +1,6 @@
 import unittest
 from synpyg.track.track import Track
-from synpyg.track.action import Par, ParE, Seq, To
+from synpyg.track.action import Par, Seq, To
 
 
 class MockProp:
@@ -14,7 +14,6 @@ class MockProp:
 
 
 class TestTrackBugs(unittest.TestCase):
-
     # @unittest.expectedFailure
     def test_par_respects_user_dur(self):
         """ParA ignores user-provided dur and uses 10% of it as a hint."""

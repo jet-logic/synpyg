@@ -204,7 +204,7 @@ class ToStartBugTest(unittest.TestCase):
         a = Real.new_animated().add_waypoint(0, 0.0)
         t = Track()
         t.advance(5)
-        t << To(a, 1.0, dur=1)
+        t <<= To(a, 1.0, dur=1)
         # The ramp must cover 5s..6s. Today only (0s, 0) and (6s, 1) exist, so
         # the value ramps over 0s..6s instead.
         self.assertIn((5.0, 0.0), waypoints(a))
