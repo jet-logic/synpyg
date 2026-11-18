@@ -1,3 +1,4 @@
+# pyright: reportUnusedExpression=false
 from synpyg.canvas import Canvas
 from synpyg.layer import CircleLayer
 from synpyg.track.track import Track
@@ -59,6 +60,7 @@ track << Seq(
     # 5.5s–6.5s: Add applies a delta to the current position (2.4 -> 1.2).
     Add(position, (-1.2, 0.0), dur=1.0),
 )
+
 
 canvas.save_xml("/tmp/motion_choreography.sif")
 print(f"Wrote motion_choreography.sif; track ends at {track.current_time:g}s")

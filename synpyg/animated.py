@@ -3,14 +3,7 @@ from .ref import Ref
 from .timeutil import tosec
 from .value import Value, ValueKind
 from .base import WithFields, WithXML
-
-# A fixed absolute tolerance avoids collapsing distinct instants at large
-# timestamps.
-_TIME_ABS_TOL = 1e-9
-
-
-def _same_time(a: float, b: float) -> bool:
-    return abs(a - b) <= _TIME_ABS_TOL
+from .track.timecmp import same_time as _same_time
 
 
 VALID_INTERPOLATIONS = (
@@ -138,12 +131,19 @@ class Animated(WithFields):
         value,
         *,
         add=False,
-        start: float | None = None,  # TODO
+        start: float | str | None = None,
         fps: float | None = None,
         **kwargs,
     ):
         """Add a waypoint. ``time`` may be seconds or a time string; frames
-        ("12f") need ``fps``."""
+        ("12f") need ``fps``.
+
+        ``start`` is the time an interpolation towards this waypoint begins
+        (supplied by the ``To`` action). If no waypoint sits at ``start``, a
+        hold waypoint is inserted there carrying the value of the latest
+        waypoint at or before it, so the move starts at ``start`` instead of
+        at an earlier keyframe. Note this is that waypoint's own value, not
+        the interpolated value, which differs when later waypoints exist."""
         w = Waypoint()
         w.time = t = tosec(time, fps)
         w.value = v = self.kind.coerce(value)
@@ -151,8 +151,8 @@ class Animated(WithFields):
         w._assign_given(**kwargs)  # None leaves a field unset, as in Animated(...)
 
         # A To() action supplies its start time as well as its end time. Add a
-        # waypoint carrying the value already in effect at that start, so the
-        # interpolation begins there rather than at an earlier keyframe.
+        # waypoint at that start carrying the preceding waypoint's value, so
+        # the interpolation begins there rather than at an earlier keyframe.
         hold = None
         if start is not None:
             start = tosec(start, fps)

@@ -1,15 +1,11 @@
 import math
-from typing import Optional, Protocol, Any, Union
+from numbers import Real
+from typing import Optional, Any
+from .timecmp import same_time as _same_time, snap_time
 from .track import Finalizer, Proxy, RangeEtc, Resolver, Track
 
-
-# A fixed absolute tolerance avoids treating increasingly distant timestamps
-# as equal merely because their magnitude is large.
-_TIME_ABS_TOL = 1e-9
-
-
-def _same_time(a: float, b: float) -> bool:
-    return abs(a - b) <= _TIME_ABS_TOL
+# Keywords that ToA/Add themselves pass to Animated.add_waypoint().
+_RESERVED_TO_KWARGS = ("time", "value", "start")
 
 
 def _add_time(start: float, duration: float) -> float:
@@ -19,37 +15,72 @@ def _add_time(start: float, duration: float) -> float:
     result = start + duration
     if not math.isfinite(result):
         raise ValueError(f"Invalid resulting time {result}")
-    return result
+    return snap_time(result)
+
+
+def _number(x: Any, what: str) -> float:
+    """Coerce a real number (not a bool, not a string) to float."""
+    if isinstance(x, bool) or not isinstance(x, Real):
+        raise TypeError(f"{what} must be a number of seconds, got {type(x).__name__}")
+    try:
+        return float(x)
+    except OverflowError:
+        raise ValueError(f"Invalid {what} {x!r}") from None
 
 
 def _check_dur(dur: Optional[float]) -> Optional[float]:
-    """Coerce a duration to float; reject negative and NaN (inf is allowed)."""
+    """Coerce a duration to float seconds; reject negative and NaN (inf is allowed)."""
     if dur is None:
         return None
-    dur = dur * 1.0
+    dur = _number(dur, "duration")
     if not dur >= 0:
         raise ValueError(f"Invalid duration {dur}")
     return dur
 
 
 def _check_offset(offset: Optional[float], name: str) -> Optional[float]:
-    """Coerce a sequence offset to float and reject non-finite values."""
+    """Coerce a sequence offset to float seconds and reject non-finite values."""
     if offset is None:
         return None
-    offset = offset * 1.0
+    offset = _number(offset, name)
     if not math.isfinite(offset):
         raise ValueError(f"Invalid {name} {offset}")
     return offset
 
 
-def PassA(track: "Track", dur: float = 1, **kwargs) -> Resolver:
-    dur = _check_dur(dur)
+def _check_targets(prop: Any) -> tuple:
+    """Normalize a To/Add target (or list/tuple of targets) and check it.
+
+    A target is anything with ``add_waypoint`` (normally an ``Animated``).
+    Checking here, rather than in the finalizer, means a wrong target is
+    reported with a clear message before anything has been changed.
+    """
+    items = tuple(prop) if isinstance(prop, (list, tuple)) else (prop,)
+    for item in items:
+        if not callable(getattr(item, "add_waypoint", None)):
+            raise TypeError(
+                "To/Add target must be an Animated (or a list/tuple of them), "
+                f"got {type(item).__name__}"
+            )
+    return items
+
+
+def _check_to_kwargs(kwargs: dict, reserved: tuple = _RESERVED_TO_KWARGS) -> None:
+    for k in reserved:
+        if k in kwargs:
+            raise ValueError(f"{k!r} is set by the action and cannot be passed")
+
+
+def PassA(track: "Track", dur: Optional[float] = 1) -> Resolver:
+    """Do nothing for ``dur`` seconds; ``dur=None`` uses the track's hint
+    (as ``To`` does). The default is a fixed 1s, not the hint."""
+    _dur = _check_dur(dur)
 
     def supply(track: "Track", start: float, end: float):
         pass
 
-    def resolve(start: float, base_frame: float, hint_dur: float) -> RangeEtc:
-        return start, _add_time(start, dur), supply
+    def resolve(start: float, base_time: float, hint_dur: float) -> RangeEtc:
+        return start, _add_time(start, hint_dur if _dur is None else _dur), supply
 
     return resolve
 
@@ -58,13 +89,11 @@ def ToA(
     track: "Track",
     prop: Any | tuple[Any],
     v: Any,
-    dur: Union[float, None] = None,
+    dur: Optional[float] = None,
     **kwargs,
 ) -> Resolver:
-    if isinstance(prop, (list, tuple)):
-        _items = prop
-    else:
-        _items = (prop,)
+    _items = _check_targets(prop)
+    _check_to_kwargs(kwargs)
     _dur = _check_dur(dur)
     _extra = kwargs
 
@@ -72,7 +101,10 @@ def ToA(
         for prop in _items:
             prop.add_waypoint(e, v, start=s, **_extra)
 
-    def resolve(start: float, base_frame: float, hint_dur: float) -> RangeEtc:
+    def resolve(start: float, base_time: float, hint_dur: float) -> RangeEtc:
+        # A resolver fixes its duration the first time it is resolved. ParE
+        # relies on this: it re-resolves an item at a new start, with a
+        # different hint, and the item must keep the length it already has.
         nonlocal _dur
         if _dur is None:
             _dur = hint_dur
@@ -102,17 +134,18 @@ def SeqA(
     _delay = _check_offset(delay, "delay")
     res_head = llsup(track, *args)
 
-    def resolve(start: float, base_frame: float, hint_dur: float):
-        # Note: hint_dur=None to stop it from propagating to sub items
+    def resolve(start: float, base_time: float, hint_dur: float):
+        # An explicit ``dur`` replaces the hint passed down to the items;
+        # without one, the hint from the enclosing action passes through.
         dur = _hint_dur
         if dur is not None:
             hint_dur = dur
-        res: Optional[Wrapper] = res_head
+        res: Optional[_Item] = res_head
         e = start  # ending time
         if (o := _stagger) is not None:
             s = start  # starting time
             while res:
-                p, q, f = res(s, base_frame, hint_dur)
+                p, q, f = res(s, base_time, hint_dur)
                 e = max(e, q)  # the Seq lasts until its longest item ends
                 res.start = p
                 res.end = q
@@ -125,7 +158,7 @@ def SeqA(
         elif (o := _delay) is not None:
             s = start  # starting time
             while res:
-                p, q, f = res(s, base_frame, hint_dur)
+                p, q, f = res(s, base_time, hint_dur)
                 e = max(e, q)  # the Seq lasts until its longest item ends
                 res.start = p
                 res.end = q
@@ -136,7 +169,7 @@ def SeqA(
                 s = max(_add_time(q, o), start)
         else:
             while res:
-                p, e, f = res(e, base_frame, hint_dur)
+                p, e, f = res(e, base_time, hint_dur)
                 res.start = p
                 res.end = e
                 res.call = f
@@ -145,7 +178,7 @@ def SeqA(
         assert e >= start
 
         def supply(track: "Track", start: float, end: float):
-            res: Optional[Wrapper] = res_head
+            res: Optional[_Item] = res_head
             while res:
                 res.call(track, res.start, res.end)
                 res = res.next
@@ -155,26 +188,39 @@ def SeqA(
     return resolve
 
 
-class Wrapper(Protocol):
-    next: Optional["Wrapper"]
-    start: float
-    end: float
-    call: Finalizer
-
-    def __call__(self, start: float, base_frame: float, hint_dur: float) -> RangeEtc:
-        raise NotImplementedError()
+def _noop(track: "Track", start: float, end: float) -> None:
+    pass
 
 
-def llsup(track, *args: Proxy) -> Optional[Wrapper]:
+class _Item:
+    """One resolved child of a Seq/Par, linked to its successor.
+
+    Holds the child's resolver together with the range and finalizer it last
+    resolved to, so containers can re-resolve it (ParE) and later run it.
+    """
+
+    __slots__ = ("resolver", "next", "start", "end", "call")
+
+    def __init__(self, resolver: Resolver) -> None:
+        self.resolver = resolver
+        self.next: Optional["_Item"] = None
+        self.start = 0.0
+        self.end = 0.0
+        self.call: Finalizer = _noop
+
+    def __call__(self, start: float, base_time: float, hint_dur: float) -> RangeEtc:
+        return self.resolver(start, base_time, hint_dur)
+
+
+def llsup(track, *args: Proxy) -> Optional[_Item]:
     """Link the resolved items; returns None when there are none (a no-op)."""
     head = cur = None
     for sup in args:
-        res: Wrapper = sup(track)  # type: ignore
+        res = _Item(sup(track))
         if cur:
             cur.next = res
         else:
-            head = cur = res
-        res.next = None
+            head = res
         cur = res
     return head
 
@@ -188,12 +234,14 @@ def ParA(
     _hint_dur = _check_dur(dur)
     res_head = llsup(track, *args)
 
-    def resolve(start: float, base_frame: float, hint_dur: float):
+    def resolve(start: float, base_time: float, hint_dur: float):
+        # Items without a ``dur`` take the longest duration seen so far among
+        # the items resolved before them, so the result depends on item order.
         dur = _hint_dur
         E = start
-        res: Optional[Wrapper] = res_head
+        res: Optional[_Item] = res_head
         while res:
-            p, q, f = res(start, base_frame, hint_dur if dur is None else dur)
+            p, q, f = res(start, base_time, hint_dur if dur is None else dur)
             if dur is None:
                 dur = q - p
             else:
@@ -209,7 +257,7 @@ def ParA(
             res = res_head
             while res:
                 if not _same_time(res.end, E):
-                    p, q, f = res(E - (res.end - res.start), base_frame, dur)
+                    p, q, f = res(snap_time(E - (res.end - res.start)), base_time, dur)
                     res.start = p
                     res.end = q
                     res.call = f
@@ -220,7 +268,7 @@ def ParA(
         assert E >= start
 
         def supply(track: "Track", start: float, end: float):
-            res: Optional[Wrapper] = res_head
+            res: Optional[_Item] = res_head
             while res:
                 # res.call(track)
                 res.call(track, res.start, res.end)
@@ -254,26 +302,31 @@ def ParE(
     return lambda track: ParA(track, *args, dur=dur, end=True)
 
 
-def Pass(dur=1.0) -> Proxy:
+def Pass(dur: Optional[float] = 1.0) -> Proxy:
+    _check_dur(dur)  # fail where the action is written
     return lambda track: PassA(track, dur)
 
 
 def To(
     prop: Any | tuple[Any],
     v: Any,
-    dur: Union[float, None] = None,
+    dur: Optional[float] = None,
     **kwargs,
 ) -> Proxy:
+    _check_targets(prop)
+    _check_to_kwargs(kwargs)
     return lambda track: ToA(track, prop, v, dur, **kwargs)
 
 
 def Add(
     prop: Any | tuple[Any],
     v: Any,
-    dur: Union[float, None] = None,
+    dur: Optional[float] = None,
     **kwargs,
 ) -> Proxy:
-    return lambda track: ToA(track, prop, v, dur, add=True, **kwargs)
+    _check_targets(prop)
+    _check_to_kwargs(kwargs, _RESERVED_TO_KWARGS + ("add",))
+    return lambda track: AddA(track, prop, v, dur, **kwargs)
 
 
 __all__ = ("Add", "To", "Pass", "Par", "ParE", "Seq")
