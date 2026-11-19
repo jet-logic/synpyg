@@ -77,10 +77,9 @@ class ConfirmedBugs(unittest.TestCase):
         self.assertEqual(len(real.waypoints), 0)
         self.assertEqual(track.current_time, 0)
 
-    @expectedFailure
     def test_b1c_to_with_infinite_duration_fails_before_any_side_effect(self):
-        """To(dur=inf) is accepted by _check_dur and feed(), then add_waypoint
-        rejects time=inf, after the preceding sibling already ran."""
+        """Durations are finite floats: To(dur=inf) is rejected when the
+        action is written, before any sibling runs."""
         first, second = Animated(Real), Animated(Real)
         track = Track()
         with self.assertRaises(ValueError):
@@ -103,27 +102,16 @@ class ConfirmedBugs(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)), f"duplicate ids: {ids}")
         self.assertEqual(len(guids), len(set(guids)), f"duplicate guids: {guids}")
 
-    # B3 -- ParE with infinite items: assert instead of a defined result --------
+    # B3 -- infinite durations are rejected, so ParE never sees them ----------
 
-    @expectedFailure
-    def test_b3a_pare_with_infinite_item_does_not_trip_an_assert(self):
-        """_same_time(inf, inf) is False (inf - inf is nan), so ParE tries to
-        re-align an item that already ends at E and hits an assert.  A clean
-        ValueError, or a working result, are both acceptable; AssertionError
-        is not (and under ``python -O`` the behaviour silently differs)."""
-        track = Track()
-        try:
-            track << ParE(Pass(INF), Pass(1))
-        except ValueError:
-            pass
-
-    @expectedFailure
-    def test_b3b_pare_of_two_infinite_items_does_not_trip_an_assert(self):
-        track = Track()
-        try:
-            track << ParE(Pass(INF), Pass(INF))
-        except ValueError:
-            pass
+    def test_b3_infinite_durations_are_rejected_up_front(self):
+        for make in (
+            lambda: ParE(Pass(INF), Pass(1)),
+            lambda: ParE(Pass(INF), Pass(INF)),
+        ):
+            with self.subTest(make=make):
+                with self.assertRaises(ValueError):
+                    make()
 
     # B4 -- hand-built waypoint without a time ----------------------------------
 
@@ -314,9 +302,10 @@ class WorkingBehaviour(unittest.TestCase):
         self.assertEqual(a.waypoints, [])
         self.assertEqual(track.current_time, 0)
 
-    def test_pass_infinity_does_not_advance_the_track(self):
+    def test_pass_infinity_is_rejected(self):
         track = Track()
-        track << Pass(INF)
+        with self.assertRaises(ValueError):
+            track << Pass(INF)
         self.assertEqual(track.current_time, 0)
 
     def test_sub_track_is_independent_of_its_parent(self):

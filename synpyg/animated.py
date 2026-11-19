@@ -53,6 +53,11 @@ class Waypoint(WithFields, WithXML):
         return f"Waypoint({', '.join(parts)})"
 
 
+def _latest(waypoints: list[Waypoint]) -> Waypoint:
+    """The latest waypoint in time (the last one inserted, among equal times)."""
+    return max(reversed(waypoints), key=lambda wp: wp.time)
+
+
 class Animated(WithFields):
     kind: ValueKind
 
@@ -136,64 +141,56 @@ class Animated(WithFields):
         **kwargs,
     ):
         """Add a waypoint. ``time`` may be seconds or a time string; frames
-        ("12f") need ``fps``.
+        ("12f") need ``fps``. Times are always finite floats.
 
         ``start`` is the time an interpolation towards this waypoint begins
         (supplied by the ``To`` action). If no waypoint sits at ``start``, a
         hold waypoint is inserted there carrying the value of the latest
-        waypoint at or before it, so the move starts at ``start`` instead of
-        at an earlier keyframe. Note this is that waypoint's own value, not
-        the interpolated value, which differs when later waypoints exist."""
+        waypoint before it, so the move starts at ``start`` instead of at an
+        earlier keyframe. Note this is that waypoint's own value, not the
+        interpolated value, which differs when later waypoints exist."""
         w = Waypoint()
         w.time = t = tosec(time, fps)
         w.value = v = self.kind.coerce(value)
         self._reject_self_reference(v)
         w._assign_given(**kwargs)  # None leaves a field unset, as in Animated(...)
 
-        # A To() action supplies its start time as well as its end time. Add a
-        # waypoint at that start carrying the preceding waypoint's value, so
-        # the interpolation begins there rather than at an earlier keyframe.
         hold = None
         if start is not None:
             start = tosec(start, fps)
-            if start > t and not _same_time(start, t):
-                raise ValueError(f"start time {start!r}s is after waypoint time {t!r}s")
-            if not _same_time(start, t) and self.waypoints:
-                at_start = [
-                    wp
-                    for wp in self.waypoints
-                    if wp.time <= start or _same_time(wp.time, start)
-                ]
-                if at_start and not any(
-                    _same_time(wp.time, start) for wp in self.waypoints
-                ):
-                    previous = max(reversed(at_start), key=lambda wp: wp.time)
-                    hold = Waypoint()
-                    hold.time = start
-                    hold.value = previous.value
+            if not _same_time(start, t):
+                if start > t:
+                    raise ValueError(
+                        f"start time {start!r}s is after waypoint time {t!r}s"
+                    )
+                if not any(_same_time(wp.time, start) for wp in self.waypoints):
+                    earlier = [wp for wp in self.waypoints if wp.time < start]
+                    if earlier:
+                        hold = Waypoint()
+                        hold.time = start
+                        hold.value = _latest(earlier).value
 
+        merge = None  # an existing waypoint at the same time absorbs this one
         if add:
             if not self.waypoints:
                 raise ValueError("No previous waypoint")
-            # The previous waypoint is the latest in time (the last one
-            # inserted, among equal times), not simply the last one inserted.
-            last = max(reversed(self.waypoints), key=lambda wp: wp.time)
-            same = _same_time(t, last.time)
-            if t < last.time and not same:
+            last = _latest(self.waypoints)
+            if _same_time(t, last.time):
+                merge = last
+            elif t < last.time:
                 raise ValueError(
                     f"time must be incremental: {t!r}s is before the "
                     f"previous waypoint at {last.time!r}s"
                 )
-            w.value = v = self.kind.add(last.value, v)
-            if same:
-                if hold is not None:
-                    self.waypoints.append(hold)
-                last.value = v
-                last._assign_given(**kwargs)
-                return self
+            w.value = self.kind.add(last.value, v)
+
         if hold is not None:
             self.waypoints.append(hold)
-        self.waypoints.append(w)
+        if merge is None:
+            self.waypoints.append(w)
+        else:
+            merge.value = w.value
+            merge._assign_given(**kwargs)
         return self
 
     def _ordered_waypoints(self) -> list[Waypoint]:

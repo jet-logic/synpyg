@@ -1,7 +1,7 @@
 import unittest
 
 from synpyg.animated import Animated
-from synpyg.track.action import ParE, Pass, To
+from synpyg.track.action import ParE, To
 from synpyg.track.track import Track
 from synpyg.value import Real
 
@@ -34,11 +34,6 @@ class TrackFeedOverflowTests(unittest.TestCase):
 
         self.assertEqual(track.current_time, 1e308)
         self.assertEqual(called, [])
-
-    def test_explicit_infinite_duration_remains_supported(self):
-        track = Track()
-        track << Pass(float("inf"))
-        self.assertEqual(track.current_time, 0.0)
 
 
 class SameTimePrecisionTests(unittest.TestCase):
