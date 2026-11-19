@@ -1,6 +1,39 @@
+from .animated import Animated
 from .base import Base, Param, WithXML, WithFields
+from .ref import Ref
 from .value import Color, Integer, Real, Time, Vector, Boolean
 from .attrs import BoolAttr, StringAttr
+
+
+def _animated_times(value, seen: set):
+    """Yield the waypoint times of ``value`` if it is (or refers to) an Animated.
+
+    Refs are followed, and an Animated reached twice (shared, or in a cycle)
+    is read once. Plain ``use`` strings cannot be resolved and are skipped."""
+    stack = [value]
+    while stack:
+        v = stack.pop()
+        if isinstance(v, Ref):
+            v = v.target
+        if isinstance(v, Animated) and id(v) not in seen:
+            seen.add(id(v))
+            for w in v.waypoints:
+                if (t := w.__dict__.get("time")) is not None:
+                    yield t
+                stack.append(w.__dict__.get("value"))  # an Animated may nest a Ref
+
+
+def _times_under(root):
+    """Yield every waypoint time of ``root``'s params and of all layers below it."""
+    seen: set = set()
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, Layer):
+            for _, prop in node._enum_params():
+                yield from _animated_times(prop.value, seen)
+        if isinstance(node, Grouping):
+            stack.extend(node)
 
 
 class Layer(WithFields, WithXML, Base):
@@ -81,6 +114,15 @@ class MotionBlurLayer(Layer):
 
 
 class Grouping(Base):
+    def time_range(self) -> tuple[float, float] | None:
+        """The earliest and latest waypoint time, in seconds, over the whole
+        layer hierarchy below (and, for a group layer, including) this node.
+
+        Animations a param refers to with ``Ref`` count too. Returns ``None``
+        when nothing is animated."""
+        times = list(_times_under(self))
+        return (min(times), max(times)) if times else None
+
     def add_solid_color_layer(self, *args, before: Base | None = None, **kwargs):
         e = SolidColorLayer(*args, **kwargs)
         self.insert_before(before, e)
