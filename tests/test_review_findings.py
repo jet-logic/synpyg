@@ -134,12 +134,12 @@ class ConfirmedBugs(unittest.TestCase):
 
 
 class FixedOddities(unittest.TestCase):
-    def test_o1_track_rejects_nonsensical_fps(self):
-        """fps used to be stored unchecked."""
-        for bad in (0, -5, float("nan"), INF):
-            with self.subTest(fps=bad):
-                with self.assertRaises((ValueError, TypeError)):
-                    Track(fps=bad)
+    def test_o1_track_is_seconds_only(self):
+        """A Track has no fps or easing: it works in seconds."""
+        for kw in ("fps", "easing"):
+            with self.subTest(kw=kw):
+                with self.assertRaises(TypeError):
+                    Track(**{kw: 24})
 
     def test_o2_to_with_non_animated_target_raises_type_error(self):
         """Used to surface as AttributeError from inside the finalizer."""

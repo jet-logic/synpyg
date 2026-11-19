@@ -25,17 +25,10 @@ class Track:
         self,
         hint_dur: float = 1.0,  # 1 sec
         current_time: float = 0,  # sec
-        fps: float = 24.0,
-        easing: tuple[float, float, float, float] | bool | None = None,
     ):
-        """``fps`` and ``easing`` are stored for callers; the built-in actions
-        work in seconds and do not use them."""
-        if not (math.isfinite(fps) and fps > 0):
-            raise ValueError(f"Invalid fps {fps}")
+        """Everything on a track is in seconds; convert frames before use."""
         self.hint_dur = check_time(hint_dur, "hint_dur")
         self.current_time = check_time(current_time)
-        self.fps = fps
-        self.easing = easing
 
     def advance(self, t: float):
         self.current_time = add_time(self.current_time, check_time(t))

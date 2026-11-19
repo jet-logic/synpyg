@@ -32,17 +32,23 @@ class FramesTest(unittest.TestCase):
             Time("12f")
         self.assertEqual(Time(1.5).data, 1.5)
 
-    def test_waypoint_with_fps(self):
+    def test_waypoint_times_are_seconds_only(self):
         a = Real.new_animated()
-        a.add_waypoint("24f", 1, fps=24).add_waypoint(2, 2)
-        self.assertEqual([w.time for w in a.waypoints], [1.0, 2.0])
+        a.add_waypoint(1, 1).add_waypoint("500ms", 2).add_waypoint("0:03", 3)
+        self.assertEqual([w.time for w in a.waypoints], [1.0, 0.5, 3.0])
         with self.assertRaises(ValueError):
             a.add_waypoint("1f", 3)
-        self.assertEqual(len(a.waypoints), 2)  # failed add leaves nothing behind
+        self.assertEqual(len(a.waypoints), 3)  # failed add leaves nothing behind
 
-    def test_waypoint_kwargs_still_work_with_fps(self):
+    def test_waypoint_takes_no_fps(self):
         a = Real.new_animated()
-        a.add_waypoint("6f", 1, fps=12, before="clamped")
+        with self.assertRaises(TypeError):
+            a.add_waypoint(1, 1, fps=24)
+        self.assertEqual(a.waypoints, [])
+
+    def test_waypoint_kwargs_still_work(self):
+        a = Real.new_animated()
+        a.add_waypoint(0.5, 1, before="clamped")
         self.assertEqual(a.waypoints[0].before, "clamped")
         self.assertEqual(a.waypoints[0].time, 0.5)
 

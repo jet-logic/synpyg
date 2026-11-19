@@ -322,11 +322,11 @@ class WorkingBehaviour(unittest.TestCase):
         with self.assertRaises(TypeError):
             Animated(Real).add_waypoint(0, 1, bogus=1)
 
-    def test_frames_need_fps(self):
+    def test_frames_are_not_accepted(self):
         with self.assertRaises(ValueError):
             Animated(Real).add_waypoint("12f", 1)
-        a = Animated(Real).add_waypoint("12f", 1, fps=24)
-        self.assertEqual(a.waypoints[0].time, 0.5)
+        with self.assertRaises(TypeError):  # there is no fps argument
+            Animated(Real).add_waypoint(0.5, 1, fps=24)
 
     def test_ref_waypoint_serializes_as_use_without_child(self):
         target = Real(2, id="r")

@@ -137,11 +137,11 @@ class Animated(WithFields):
         *,
         add=False,
         start: float | str | None = None,
-        fps: float | None = None,
         **kwargs,
     ):
-        """Add a waypoint. ``time`` may be seconds or a time string; frames
-        ("12f") need ``fps``. Times are always finite floats.
+        """Add a waypoint. ``time`` may be seconds or a time string such as
+        "1.5s", "500ms" or "1:30"; frames ("12f") are not accepted. Times are
+        always finite floats.
 
         ``start`` is the time an interpolation towards this waypoint begins
         (supplied by the ``To`` action). If no waypoint sits at ``start``, a
@@ -150,14 +150,14 @@ class Animated(WithFields):
         earlier keyframe. Note this is that waypoint's own value, not the
         interpolated value, which differs when later waypoints exist."""
         w = Waypoint()
-        w.time = t = tosec(time, fps)
+        w.time = t = tosec(time)
         w.value = v = self.kind.coerce(value)
         self._reject_self_reference(v)
         w._assign_given(**kwargs)  # None leaves a field unset, as in Animated(...)
 
         hold = None
         if start is not None:
-            start = tosec(start, fps)
+            start = tosec(start)
             if not _same_time(start, t):
                 if start > t:
                     raise ValueError(
