@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# --- cmd
+# id: myuh3z43eng4ljf5sk6cii45f4
+# name: Run the test suite under coverage and build an HTML report
+# cmd-name: coverage-html
+# ---
 """Run the test suite under coverage and build an HTML report.
 
 Everything this script generates (the coverage data file, the HTML report, the
