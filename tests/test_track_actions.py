@@ -20,12 +20,12 @@ from synpyg.value import Real
 
 
 class Recorder:
-    """Stand-in for an Animated that just records ``add_waypoint`` calls."""
+    """Stand-in for an Animated that just records ``add_keyframe`` calls."""
 
     def __init__(self):
         self.calls: list[tuple[float, object, dict]] = []
 
-    def add_waypoint(self, time, value, **kwargs):
+    def add_keyframe(self, time, value, **kwargs):
         self.calls.append((time, value, kwargs))
         return self
 
@@ -95,7 +95,7 @@ class ToTest(unittest.TestCase):
         self.assertEqual((a.times, b.times), ([2.0], [2.0]))
         self.assertEqual(t.current_time, 2.0)
 
-    def test_extra_kwargs_reach_add_waypoint(self):
+    def test_extra_kwargs_reach_add_keyframe(self):
         t = Track()
         r = Recorder()
         t << To(r, 1, dur=1, before="clamped")
@@ -107,7 +107,7 @@ class ToTest(unittest.TestCase):
         self.assertEqual(r.times, [3.0])
 
     def test_add_accumulates_on_a_real_animated(self):
-        a = Real.new_animated().add_waypoint(0, 1.0)
+        a = Real.new_animated().add_keyframe(0, 1.0)
         Track() << Add(a, 2.0, dur=1)
         self.assertEqual(waypoints(a), [(0.0, 1.0), (1.0, 3.0)])
 
@@ -197,11 +197,11 @@ class SeqDurationTest(unittest.TestCase):
 
 
 class ToStartBugTest(unittest.TestCase):
-    """To() passes start=s to add_waypoint, but add_waypoint ignores it (TODO)."""
+    """To() passes start=s to add_keyframe, but add_keyframe ignores it (TODO)."""
 
     # @unittest.expectedFailure
     def test_to_holds_previous_value_until_its_start_time(self):
-        a = Real.new_animated().add_waypoint(0, 0.0)
+        a = Real.new_animated().add_keyframe(0, 0.0)
         t = Track()
         t.advance(5)
         t <<= To(a, 1.0, dur=1)

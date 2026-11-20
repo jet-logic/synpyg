@@ -96,7 +96,7 @@ class ParamDescriptorTest(unittest.TestCase):
     def test_set_params_keeps_existing_animation(self):
         c = CircleLayer()
         anim = c.origin.as_animated()
-        anim.add_waypoint(0, Vector([0, 0]))
+        anim.add_keyframe(0, Vector([0, 0]))
         c._assign(radius=1)  # touches a different param; origin untouched
         self.assertIs(c.origin.value, anim)
 
@@ -161,7 +161,7 @@ class NewAnimatedTest(unittest.TestCase):
                 a = cls.new_animated()
                 self.assertIsInstance(a, Animated)
                 self.assertIs(a.kind.value_type, cls)
-                a.add_waypoint(0, sample)
+                a.add_keyframe(0, sample)
                 el = a.to_xml_element(ET)
                 self.assertEqual(el.get("type"), cls.tag)
 
@@ -236,13 +236,13 @@ class PropertyConstructorTest(unittest.TestCase):
             Property(Real, value=Vector([1, 2]))
 
     def test_animated_initial_value_is_accepted(self):
-        anim = Animated(Real).add_waypoint(0, 1.5)
+        anim = Animated(Real).add_keyframe(0, 1.5)
         prop = Property(Real, value=anim)
 
         self.assertIs(prop.value, anim)
 
     def test_wrong_animated_type_is_rejected(self):
-        anim = Animated(Vector).add_waypoint(0, [1, 2])
+        anim = Animated(Vector).add_keyframe(0, [1, 2])
 
         with self.assertRaises(ValueError):
             Property(Real, value=anim)

@@ -47,8 +47,8 @@ class SequenceValidationTests(unittest.TestCase):
         for option in ("stagger", "delay"):
             for value in (float("nan"), float("inf"), -float("inf")):
                 with self.subTest(option=option, value=value):
-                    first = Real.new_animated().add_waypoint(0, 0.0)
-                    second = Real.new_animated().add_waypoint(0, 0.0)
+                    first = Real.new_animated().add_keyframe(0, 0.0)
+                    second = Real.new_animated().add_keyframe(0, 0.0)
                     with self.assertRaises(ValueError):
                         Track() << Seq(
                             To(first, 1.0, dur=1.0),
@@ -62,7 +62,7 @@ class SequenceValidationTests(unittest.TestCase):
 class AnimatedStartTimeTests(unittest.TestCase):
     # @unittest.expectedFailure
     def test_to_holds_previous_value_until_its_start_time(self):
-        animated = Real.new_animated().add_waypoint(0, 0.0)
+        animated = Real.new_animated().add_keyframe(0, 0.0)
         track = Track()
         track.advance(5.0)
         track << To(animated, 1.0, dur=1.0)
@@ -89,7 +89,7 @@ class WorkingBehaviourTests(unittest.TestCase):
         self.assertEqual(animated.waypoints[-1].value.data, 3.0)
 
     def test_add_accumulates_on_existing_animated_value(self):
-        animated = Real.new_animated().add_waypoint(0, 2.0)
+        animated = Real.new_animated().add_keyframe(0, 2.0)
         Track() << Add(animated, 3.0, dur=1.0)
         self.assertEqual(animated.waypoints[-1].time, 1.0)
         self.assertEqual(animated.waypoints[-1].value.data, 5.0)
@@ -105,7 +105,7 @@ class WorkingBehaviourTests(unittest.TestCase):
 
     def test_waypoint_order_is_stable_for_equal_times(self):
         animated = Animated(Real)
-        animated.add_waypoint(1.0, 1.0).add_waypoint(1.0, 2.0)
+        animated.add_keyframe(1.0, 1.0).add_keyframe(1.0, 2.0)
         values = [
             float(node.find("real").get("value"))
             for node in animated.to_xml_element(ET)

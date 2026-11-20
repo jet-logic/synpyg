@@ -5,7 +5,6 @@ from .value import Value, ValueKind
 from .base import WithFields, WithXML
 from .track.timecmp import same_time as _same_time
 
-
 VALID_INTERPOLATIONS = (
     "auto",
     "clamped",
@@ -18,7 +17,7 @@ VALID_INTERPOLATIONS = (
 
 
 class Waypoint(WithFields, WithXML):
-    # users are expected to use Animated.add_waypoint,
+    # users are expected to use Animated.add_keyframe,
     value: Value | Ref  # child element (or `use`), not an XML attribute, so not a Field
     time = TimeAttr(required=True)
     before = StringEnumAttr(choices=VALID_INTERPOLATIONS)
@@ -97,7 +96,7 @@ class Animated(WithFields):
             raise ValueError("an Animated cannot refer to itself")
 
     def _check_waypoint(self, w) -> None:
-        """Validate a waypoint that may have bypassed ``add_waypoint``."""
+        """Validate a waypoint that may have bypassed ``add_keyframe``."""
         if not isinstance(w, Waypoint):
             raise TypeError(
                 f"waypoints must hold Waypoint objects, got {type(w).__name__}"
@@ -130,7 +129,7 @@ class Animated(WithFields):
 
         return element
 
-    def add_waypoint(
+    def add_keyframe(
         self,
         time,
         value,

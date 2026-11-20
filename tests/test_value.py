@@ -60,7 +60,7 @@ class StringAngleValueTest(unittest.TestCase):
 
     def test_string_via_animated(self):
         a = Animated(String)
-        a.add_waypoint(0, "a").add_waypoint(1, String("b"))
+        a.add_keyframe(0, "a").add_keyframe(1, String("b"))
         vals = [w.value.data for w in a.waypoints]
         self.assertEqual(vals, ["a", "b"])
 

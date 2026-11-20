@@ -74,7 +74,7 @@ class Property(WithXML):
         animated = self.kind.new_animated()
 
         if preserve and old_value is not None:
-            animated.add_waypoint(0, old_value)
+            animated.add_keyframe(0, old_value)
 
         self.value = animated
         return animated

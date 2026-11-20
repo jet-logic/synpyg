@@ -22,7 +22,7 @@ class ExportTest(unittest.TestCase):
 
     def test_export_animated(self):
         c = Canvas()
-        a = c.export("pulse", Real.new_animated().add_waypoint(0, 1.0))
+        a = c.export("pulse", Real.new_animated().add_keyframe(0, 1.0))
         self.assertEqual(a.id, "pulse")
         self.assertIs(c.defs["pulse"], a)
 
@@ -95,7 +95,7 @@ class DefsXmlTest(unittest.TestCase):
         c = Canvas()
         c.add_circle_layer()
         c.export("glow", Real(1.5))
-        c.export("pulse", Vector.new_animated().add_waypoint(0, (0, 0)))
+        c.export("pulse", Vector.new_animated().add_keyframe(0, (0, 0)))
         root = tree(c)
         self.assertEqual([e.tag for e in root], ["defs", "layer"])
         real, anim = root.find("defs")  # type: ignore
@@ -121,7 +121,7 @@ class DefsXmlTest(unittest.TestCase):
         c = Canvas()
         layer = c.add_circle_layer()
         peak = c.export("peak", Real(5.0))
-        layer.amount.as_animated().add_waypoint(1, Ref(peak))
+        layer.amount.as_animated().add_keyframe(1, Ref(peak))
         root = tree(c)
         wp = root.find("layer/param/animated/waypoint")
         self.assertEqual(wp.get("use"), "peak")  # type: ignore
@@ -154,7 +154,7 @@ class DefsXmlTest(unittest.TestCase):
     def test_exported_animated_may_reference_another_export(self):
         c = Canvas()
         peak = c.export("peak", Real(5.0))
-        c.export("pulse", Real.new_animated().add_waypoint(0, Ref(peak)))
+        c.export("pulse", Real.new_animated().add_keyframe(0, Ref(peak)))
         wp = tree(c).find("defs/animated/waypoint")
         self.assertEqual(wp.get("use"), "peak")  # type: ignore
 
@@ -176,13 +176,13 @@ class CheckDefsTest(unittest.TestCase):
     def test_dangling_ref_inside_a_group_and_a_waypoint(self):
         c = Canvas()
         inner = c.add_group_layer().add_circle_layer()
-        inner.amount.as_animated().add_waypoint(0, Ref(Real(1.0, id="x")))
+        inner.amount.as_animated().add_keyframe(0, Ref(Real(1.0, id="x")))
         with self.assertRaisesRegex(ValueError, "waypoint"):
             tree(c)
 
     def test_dangling_ref_inside_an_export(self):
         c = Canvas()
-        c.export("pulse", Real.new_animated().add_waypoint(0, Ref(Real(1.0, id="x"))))
+        c.export("pulse", Real.new_animated().add_keyframe(0, Ref(Real(1.0, id="x"))))
         with self.assertRaisesRegex(ValueError, "export 'pulse'"):
             tree(c)
 
@@ -204,7 +204,7 @@ class CheckDefsTest(unittest.TestCase):
     def test_waypoint_value_with_an_id_cannot_be_embedded(self):
         c = Canvas()
         layer = c.add_circle_layer()
-        layer.amount.as_animated().add_waypoint(0, Real(1.0, id="x"))
+        layer.amount.as_animated().add_keyframe(0, Real(1.0, id="x"))
         with self.assertRaisesRegex(ValueError, "embedded"):
             tree(c)
 
@@ -218,7 +218,7 @@ class CheckDefsTest(unittest.TestCase):
     def test_plain_values_without_ids_are_unaffected(self):
         c = Canvas()
         c.add_circle_layer().radius = 2.0
-        c.add_circle_layer().amount.as_animated().add_waypoint(0, 1.0)
+        c.add_circle_layer().amount.as_animated().add_keyframe(0, 1.0)
         tree(c)  # no error
 
 

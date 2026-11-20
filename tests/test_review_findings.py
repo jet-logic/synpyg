@@ -92,7 +92,7 @@ class ConfirmedBugs(unittest.TestCase):
     @expectedFailure
     def test_b2_hold_waypoint_does_not_duplicate_exported_id_or_guid(self):
         a = Animated(Real)
-        a.add_waypoint(0, Real(1.0, id="keep", guid="G-1"))
+        a.add_keyframe(0, Real(1.0, id="keep", guid="G-1"))
         track = Track()
         track.advance(2)
         track << To(a, 5.0, dur=1)  # inserts a hold waypoint at t=2
@@ -119,7 +119,7 @@ class ConfirmedBugs(unittest.TestCase):
     def test_b4_timeless_waypoint_in_list_reports_value_error(self):
         """_check_waypoint validates value/kind but not time; the sort in
         _ordered_waypoints then raises a bare AttributeError. Every other
-        bypass of add_waypoint is reported as ValueError/TypeError."""
+        bypass of add_keyframe is reported as ValueError/TypeError."""
         a = Animated(Real)
         w = Waypoint()
         w.value = Real(1.0)
@@ -267,7 +267,7 @@ class WorkingBehaviour(unittest.TestCase):
 
     def test_to_inserts_hold_waypoint_at_start_after_a_gap(self):
         a = Animated(Real)
-        a.add_waypoint(0, 1.0)
+        a.add_keyframe(0, 1.0)
         track = Track()
         track.advance(2)
         track << To(a, 5.0, dur=1)
@@ -279,13 +279,13 @@ class WorkingBehaviour(unittest.TestCase):
 
     def test_to_adds_no_hold_when_a_waypoint_already_sits_at_start(self):
         a = Animated(Real)
-        a.add_waypoint(0, 1.0)
+        a.add_keyframe(0, 1.0)
         Track() << To(a, 5.0, dur=1)
         self.assertEqual(sorted(times(a)), [0.0, 1.0])
 
     def test_add_accumulates_and_merges_at_equal_time(self):
         a = Animated(Real)
-        a.add_waypoint(0, 0.0)
+        a.add_keyframe(0, 0.0)
         track = Track()
         track << Par(Add(a, 1.0, dur=1), Add(a, 1.0, dur=1))
         last = max(a.waypoints, key=lambda w: w.time)
@@ -329,8 +329,8 @@ class WorkingBehaviour(unittest.TestCase):
     def test_hold_waypoint_takes_the_preceding_waypoints_own_value(self):
         """Documented limitation: not the interpolated value in effect."""
         a = Animated(Real)
-        a.add_waypoint(0, 0.0)
-        a.add_waypoint(2, 10.0)
+        a.add_keyframe(0, 0.0)
+        a.add_keyframe(2, 10.0)
         track = Track()
         track.advance(1)
         track << To(a, 99.0, dur=0.5)

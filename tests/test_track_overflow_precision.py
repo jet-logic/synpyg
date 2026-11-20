@@ -8,7 +8,7 @@ from synpyg.value import Real
 
 class TrackFeedOverflowTests(unittest.TestCase):
     def test_finite_action_endpoint_overflow_is_rejected_before_finalizer(self):
-        animated = Real.new_animated().add_waypoint(0, 0.0)
+        animated = Real.new_animated().add_keyframe(0, 0.0)
         track = Track(current_time=1e308)
 
         with self.assertRaises(ValueError):
@@ -39,9 +39,9 @@ class TrackFeedOverflowTests(unittest.TestCase):
 class SameTimePrecisionTests(unittest.TestCase):
     def test_animated_keeps_distinct_large_timestamps(self):
         animated = Animated(Real)
-        animated.add_waypoint(1e9, 1.0)
+        animated.add_keyframe(1e9, 1.0)
         later = 1e9 + 0.0005
-        animated.add_waypoint(later, 2.0)
+        animated.add_keyframe(later, 2.0)
 
         self.assertEqual(len(animated.waypoints), 2)
         self.assertEqual([wp.time for wp in animated.waypoints], [1e9, later])
@@ -51,7 +51,7 @@ class SameTimePrecisionTests(unittest.TestCase):
             def __init__(self):
                 self.calls = []
 
-            def add_waypoint(self, time, value, **kwargs):
+            def add_keyframe(self, time, value, **kwargs):
                 self.calls.append((time, value, kwargs))
 
         short = Recorder()

@@ -9,7 +9,7 @@ class MockProp:
     def __init__(self):
         self.waypoints = []
 
-    def add_waypoint(self, time, value, start=None, **kwargs):
+    def add_keyframe(self, time, value, start=None, **kwargs):
         self.waypoints.append((start, time, value))
 
 

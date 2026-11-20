@@ -34,32 +34,32 @@ class TimeFormattingTest(unittest.TestCase):
         for bad in ("soon", "1.5f", None):
             with self.subTest(bad=bad):
                 with self.assertRaises((ValueError, TypeError)):
-                    vec_anim().add_waypoint(bad, [0, 0])
+                    vec_anim().add_keyframe(bad, [0, 0])
 
 
 class ValueCoercionTest(unittest.TestCase):
     def test_raw_list_becomes_vector(self):
-        a = vec_anim().add_waypoint(0, [1, 2])
+        a = vec_anim().add_keyframe(0, [1, 2])
         self.assertIsInstance(a.waypoints[0].value, Vector)
         x = a.to_xml_element(ET)[0].find("vector/x")
         self.assertEqual(x.text, "1")  # type: ignore
 
     def test_existing_instance_is_kept(self):
         v = Vector([3, 4])
-        a = vec_anim().add_waypoint(0, v)
+        a = vec_anim().add_keyframe(0, v)
         self.assertIs(a.waypoints[0].value, v)
 
     def test_wrong_type_is_rejected(self):
         with self.assertRaises(ValueError):
-            vec_anim().add_waypoint(0, Real(1.0))
+            vec_anim().add_keyframe(0, Real(1.0))
 
     def test_invalid_raw_value_is_rejected(self):
         with self.assertRaises(ValueError):
-            vec_anim().add_waypoint(0, "nope")
+            vec_anim().add_keyframe(0, "nope")
 
     def test_other_value_types(self):
         a = Animated(Real)
-        a.add_waypoint(0, 2).add_waypoint(1, Real(3.5))
+        a.add_keyframe(0, 2).add_keyframe(1, Real(3.5))
         self.assertEqual([w.value.data for w in a.waypoints], [2.0, 3.5])
 
 
@@ -79,33 +79,33 @@ class OrderingTest(unittest.TestCase):
     def test_sorted_by_time_on_output(self):
         a = (
             vec_anim()
-            .add_waypoint(4, [6, 0])
-            .add_waypoint(1, [0, 0])
-            .add_waypoint(2, [3, 0])
+            .add_keyframe(4, [6, 0])
+            .add_keyframe(1, [0, 0])
+            .add_keyframe(2, [3, 0])
         )
         self.assertEqual(times(a), ["1s", "2s", "4s"])
 
     def test_mixed_time_spellings_sort_by_seconds(self):
         a = (
             vec_anim()
-            .add_waypoint("2s", [0, 0])
-            .add_waypoint(1, [0, 0])
-            .add_waypoint("1500ms", [0, 0])
+            .add_keyframe("2s", [0, 0])
+            .add_keyframe(1, [0, 0])
+            .add_keyframe("1500ms", [0, 0])
         )
         self.assertEqual(times(a), ["1s", "1.5s", "2s"])
 
     def test_equal_times_keep_insertion_order(self):
         a = (
             vec_anim()
-            .add_waypoint(1, [0, 0])
-            .add_waypoint(0, [5, 5])
-            .add_waypoint(1, [9, 9])
+            .add_keyframe(1, [0, 0])
+            .add_keyframe(0, [5, 5])
+            .add_keyframe(1, [9, 9])
         )
         xs = [w.find("vector/x").text for w in a.to_xml_element(ET)]  # type: ignore
         self.assertEqual(xs, ["5", "0", "9"])
 
     def test_sorting_does_not_mutate_waypoints(self):
-        a = vec_anim().add_waypoint(4, [0, 0]).add_waypoint(1, [0, 0])
+        a = vec_anim().add_keyframe(4, [0, 0]).add_keyframe(1, [0, 0])
         a.to_xml_element(ET)
         self.assertEqual([w.time for w in a.waypoints], [4, 1])
 

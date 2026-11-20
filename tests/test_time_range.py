@@ -8,7 +8,7 @@ from synpyg.value import Real
 def animated(*times):
     a = Real.new_animated()
     for t in times:
-        a.add_waypoint(t, 1.0)
+        a.add_keyframe(t, 1.0)
     return a
 
 
@@ -65,8 +65,8 @@ class TimeRangeTests(unittest.TestCase):
         c = Canvas()
         a = c.export("a", animated(2))
         b = c.export("b", animated(20))
-        a.add_waypoint(3, Ref(b))
-        b.add_waypoint(21, Ref(a))  # a <-> b cycle
+        a.add_keyframe(3, Ref(b))
+        b.add_keyframe(21, Ref(a))  # a <-> b cycle
         c.add_circle_layer().radius = Ref(a)
         self.assertEqual(c.time_range(), (2.0, 21.0))
 

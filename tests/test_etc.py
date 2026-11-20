@@ -108,11 +108,11 @@ class Test(unittest.TestCase):
             mbl.subsampling_type.set_value(3)
 
             anim = cir.origin.as_animated()
-            anim.add_waypoint(0, Vector([-6, 0]), before="clamped", after="clamped")
-            anim.add_waypoint(1, Vector([-6, 0]))
-            anim.add_waypoint(3, Vector([-2, -4]), add=True)
-            anim.add_waypoint(4, Vector([6, 0]), before="clamped", after="clamped")
-            anim.add_waypoint(5, Vector([6, 0]), before="clamped", after="clamped")
+            anim.add_keyframe(0, Vector([-6, 0]), before="clamped", after="clamped")
+            anim.add_keyframe(1, Vector([-6, 0]))
+            anim.add_keyframe(3, Vector([-2, -4]), add=True)
+            anim.add_keyframe(4, Vector([6, 0]), before="clamped", after="clamped")
+            anim.add_keyframe(5, Vector([6, 0]), before="clamped", after="clamped")
 
             canvas.save_xml(out)
             self.assertTrue(out.is_file())

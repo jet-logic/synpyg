@@ -105,9 +105,9 @@ class PropertyRefTest(unittest.TestCase):
 
 
 class WaypointRefTest(unittest.TestCase):
-    def test_add_waypoint_with_ref(self):
+    def test_add_keyframe_with_ref(self):
         a = Real.new_animated()
-        a.add_waypoint(0, 0.0).add_waypoint(1, Ref(Real(5.0, id="peak")))
+        a.add_keyframe(0, 0.0).add_keyframe(1, Ref(Real(5.0, id="peak")))
         first, second = a.to_xml_element(ET)
         self.assertEqual(len(first), 1)
         self.assertEqual(second.get("use"), "peak")
@@ -115,7 +115,7 @@ class WaypointRefTest(unittest.TestCase):
 
     def test_waypoint_options_survive_beside_use(self):
         a = Real.new_animated()
-        a.add_waypoint(1, Ref("peak"), before="linear", after="ease")
+        a.add_keyframe(1, Ref("peak"), before="linear", after="ease")
         el = a.to_xml_element(ET)[0]
         self.assertEqual(
             (el.get("time"), el.get("before"), el.get("after"), el.get("use")),
@@ -125,12 +125,12 @@ class WaypointRefTest(unittest.TestCase):
     def test_kind_mismatch(self):
         a = Real.new_animated()
         with self.assertRaises(ValueError):
-            a.add_waypoint(0, Ref(Vector((0, 0), id="v")))
+            a.add_keyframe(0, Ref(Vector((0, 0), id="v")))
         self.assertEqual(a.waypoints, [])
 
     def test_waypoints_with_refs_still_sort_by_time(self):
         a = Real.new_animated()
-        a.add_waypoint(2, Ref("b")).add_waypoint(1, Ref("a"))
+        a.add_keyframe(2, Ref("b")).add_keyframe(1, Ref("a"))
         self.assertEqual([w.get("use") for w in a.to_xml_element(ET)], ["a", "b"])
 
     def test_bare_waypoint(self):

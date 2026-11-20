@@ -77,7 +77,7 @@ class TakesAKindTest(unittest.TestCase):
 
     def test_animated_accepts_type_or_kind(self):
         self.assertEqual(Animated(Real).kind, Animated(ValueKind(Real)).kind)
-        a = Animated(ValueKind.of(Vector)).add_waypoint(0, [1, 2])
+        a = Animated(ValueKind.of(Vector)).add_keyframe(0, [1, 2])
         self.assertEqual(a.to_xml_element(ET).get("type"), "vector")
 
     def test_tagless_kinds_cannot_be_animated(self):
