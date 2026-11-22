@@ -76,5 +76,42 @@ class TimeRangeTests(unittest.TestCase):
         self.assertIsNone(c.time_range())
 
 
+class FillTimeRangeTests(unittest.TestCase):
+    def test_fills_both_times_from_animation_range(self):
+        c = Canvas()
+        c.add_circle_layer().radius = animated(3, 1, 7, 2)
+
+        self.assertIs(c.fill_time_range(), c)
+        self.assertEqual((c.begin_time, c.end_time), (1.0, 7.0))
+
+    def test_preserves_explicit_begin_time(self):
+        c = Canvas(begin_time=0)
+        c.add_circle_layer().radius = animated(3, 1, 7)
+
+        c.fill_time_range()
+        self.assertEqual((c.begin_time, c.end_time), (0.0, 7.0))
+
+    def test_preserves_explicit_end_time(self):
+        c = Canvas(end_time=10)
+        c.add_circle_layer().radius = animated(3, 1, 7)
+
+        c.fill_time_range()
+        self.assertEqual((c.begin_time, c.end_time), (1.0, 10.0))
+
+    def test_preserves_both_explicit_times(self):
+        c = Canvas(begin_time=0, end_time=20)
+        c.add_circle_layer().radius = animated(3, 1, 7)
+
+        c.fill_time_range()
+        self.assertEqual((c.begin_time, c.end_time), (0.0, 20.0))
+
+    def test_no_animation_leaves_times_unset(self):
+        c = Canvas()
+
+        c.fill_time_range()
+        self.assertNotIn("begin_time", c.__dict__)
+        self.assertNotIn("end_time", c.__dict__)
+
+
 if __name__ == "__main__":
     unittest.main()

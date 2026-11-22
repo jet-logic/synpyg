@@ -105,6 +105,24 @@ class Canvas(WithFields, WithXML, Grouping):
         self.meta: dict[str, Any] = {}
         self._defs: dict[str, Value | Animated] = {}
 
+    def fill_time_range(self):
+        """Fill unset begin/end times from the canvas animation range.
+
+        Explicitly supplied times are preserved. If the canvas contains no
+        animated properties, both times remain unchanged (and may stay unset).
+        Returns this canvas so the call can be chained.
+        """
+        time_range = self.time_range()
+        if time_range is None:
+            return self
+
+        begin, end = time_range
+        if "begin_time" not in self.__dict__:
+            self.begin_time = begin
+        if "end_time" not in self.__dict__:
+            self.end_time = end
+        return self
+
     @property
     def defs(self) -> Mapping[str, Value | Animated]:
         """The exported nodes (the ``<defs>`` library) by id, in export order."""
