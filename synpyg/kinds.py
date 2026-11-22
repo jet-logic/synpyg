@@ -141,15 +141,14 @@ class TimeKind(Kind[float]):
 
 
 class EnumKind(Kind[str]):
-    def __init__(self, choices) -> None:
-        if isinstance(choices, (str, bytes, bytearray)):
-            raise TypeError("choices must be an iterable of strings, not a string")
-        choices = tuple(choices)
+    def __init__(self, choices: tuple[str, ...]) -> None:
+        if not isinstance(choices, (list, tuple)):
+            raise TypeError("choices must be list or tuple")
         if not choices or not all(isinstance(c, str) for c in choices):
             raise ValueError(
                 f"choices must be a non-empty sequence of str, got {choices!r}"
             )
-        self.choices = choices
+        self.choices = tuple(choices)
 
     def coerce(
         self, value: Any, *, name: str = "value", owner: object | None = None

@@ -29,6 +29,7 @@ class ParamDescriptorTest(unittest.TestCase):
                 "origin",
                 "invert",
                 "falloff",
+                "type",
             ],
         )
 

@@ -269,3 +269,117 @@ class ValueKind(Kind[Value]):
 
     def __repr__(self) -> str:
         return f"ValueKind({self.name})"
+
+
+class SplinePoint:
+    """One Synfig BLine point (vertex, tangents, width and origin).
+
+    Tangents are vectors relative to the vertex. ``tangent2`` defaults to
+    ``tangent1``; set ``split_tangent`` when the two handles differ.
+    """
+
+    def __init__(self, vertex=(0, 0), tangent1=(0, 0), tangent2=None,
+                 width=1.0, origin=0.5, split_tangent=None):
+        self.vertex = Vector(vertex)
+        self.tangent1 = Vector(tangent1)
+        self.tangent2 = Vector(tangent1 if tangent2 is None else tangent2)
+        self.width = Real(width)
+        self.origin = Real(origin)
+        self.split_tangent = Boolean(
+            self.tangent1.data != self.tangent2.data
+            if split_tangent is None else split_tangent
+        )
+
+    @classmethod
+    def coerce(cls, value):
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, dict):
+            return cls(**value)
+        if isinstance(value, (tuple, list)) and len(value) == 2:
+            if all(isinstance(component, (int, float)) and not isinstance(component, bool) for component in value):
+                return cls(vertex=value)
+            return cls(vertex=value[0], tangent1=value[1])
+        raise ValueError(f"expected SplinePoint, mapping, or (vertex, tangent), got {value!r}")
+
+    def to_xml_element(self, et):
+        # Synfig's composite representation preserves split handles.
+        element = et.Element("composite", {"type": "bline_point"})
+        point = et.SubElement(element, "point")
+        point.append(self.vertex.to_xml_element(et))
+        for name, tangent in (("t1", self.tangent1), ("t2", self.tangent2)):
+            if name == "t2" and not self.split_tangent.data:
+                continue
+            radial = et.SubElement(element, name, {"type": "vector"})
+            radius = et.SubElement(radial, "radius")
+            radius.append(Real((tangent.data[0] ** 2 + tangent.data[1] ** 2) ** 0.5).to_xml_element(et))
+            import math
+            theta = et.SubElement(radial, "theta")
+            theta.append(Angle(math.degrees(math.atan2(tangent.data[1], tangent.data[0]))).to_xml_element(et))
+        for name, value in (("width", self.width), ("origin", self.origin), ("split", self.split_tangent)):
+            child = et.SubElement(element, name)
+            child.append(value.to_xml_element(et))
+        return element
+
+
+class Spline(Value):
+    """A Synfig BLine (ordered spline points plus its closed/loop flag)."""
+
+    tag = "bline"
+
+    def __init__(self, points=(), loop=False, **kwargs):
+        super().__init__(**kwargs)
+        if isinstance(points, Spline):
+            loop, points = points.data
+        self.data = (tuple(SplinePoint.coerce(p) for p in points), bool(loop))
+
+    @classmethod
+    def check_value(cls, value):
+        if isinstance(value, dict):
+            return cls(**value)
+        return cls(value)
+
+    @property
+    def points(self):
+        return self.data[0]
+
+    @property
+    def loop(self):
+        return self.data[1]
+
+    def to_xml_element(self, et):
+        attrs = {"type": "bline_point"}
+        if self.loop:
+            attrs["loop"] = "true"
+        element = et.Element("bline", attrs)
+        for point in self.points:
+            entry = et.SubElement(element, "entry")
+            entry.append(point.to_xml_element(et))
+        return element
+
+
+class Transformation(Value):
+    """Synfig's affine group transformation value."""
+
+    tag = "transformation"
+
+    def __init__(self, offset=(0, 0), angle=0, skew_angle=0, scale=(1, 1), **kwargs):
+        super().__init__(**kwargs)
+        self.data = (Vector(offset), Angle(angle), Angle(skew_angle), Vector(scale))
+
+    @classmethod
+    def check_value(cls, value):
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, dict):
+            return cls(**value)
+        if isinstance(value, (tuple, list)) and len(value) == 4:
+            return cls(*value)
+        raise ValueError("Transformation expects offset, angle, skew_angle, and scale")
+
+    def to_xml_element(self, et):
+        element = et.Element("transformation", self._xml_attrs())
+        for name, value in zip(("offset", "angle", "skew_angle", "scale"), self.data):
+            child = et.SubElement(element, name)
+            child.append(value.to_xml_element(et))
+        return element

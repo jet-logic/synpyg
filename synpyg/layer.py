@@ -1,7 +1,7 @@
 from .animated import Animated
 from .base import Base, Param, WithXML, WithFields
 from .ref import Ref
-from .value import Color, Integer, Real, Time, Vector, Boolean
+from .value import Color, Integer, Real, Time, Vector, Boolean, Spline, Transformation
 from .attrs import BoolAttr, StringAttr
 
 
@@ -93,9 +93,56 @@ class CircleLayer(Layer):
     origin = Param(Vector)
     invert = Param(Boolean)
     falloff = Param(Integer)
+    type = Param(Integer)
 
     def __init__(self, desc="", **kwargs):
         super().__init__("circle", version="0.1", desc=desc, **kwargs)
+
+
+class RectangleLayer(Layer):
+    """Synfig rectangle primitive."""
+
+    color = Param(Color)
+    point1 = Param(Vector)
+    point2 = Param(Vector)
+    expand = Param(Real)
+    invert = Param(Boolean)
+
+    def __init__(self, desc="", **kwargs):
+        super().__init__("rectangle", version="0.1", desc=desc, **kwargs)
+
+
+class _ShapeLayer(Layer):
+    color = Param(Color)
+    origin = Param(Vector)
+    invert = Param(Boolean)
+    antialias = Param(Boolean)
+    feather = Param(Real)
+    blurtype = Param(Integer)
+    winding_style = Param(Integer)
+    bline = Param(Spline)
+
+
+class RegionLayer(_ShapeLayer):
+    """Filled spline region."""
+
+    def __init__(self, desc="", **kwargs):
+        super().__init__("region", version="0.1", desc=desc, **kwargs)
+
+
+class OutlineLayer(_ShapeLayer):
+    """Stroked spline outline."""
+
+    width = Param(Real)
+    expand = Param(Real)
+    sharp_cusps = Param(Boolean)
+    round_tip_begin = Param(Boolean, "round_tip[0]")
+    round_tip_end = Param(Boolean, "round_tip[1]")
+    loopyness = Param(Real)
+    homogeneous_width = Param(Boolean)
+
+    def __init__(self, desc="", **kwargs):
+        super().__init__("outline", version="0.1", desc=desc, **kwargs)
 
 
 class MotionBlurLayer(Layer):
@@ -133,6 +180,21 @@ class Grouping(Base):
         self.insert_before(before, layer)
         return layer
 
+    def add_rectangle_layer(self, *args, before: Base | None = None, **kwargs):
+        layer = RectangleLayer(*args, **kwargs)
+        self.insert_before(before, layer)
+        return layer
+
+    def add_region_layer(self, *args, before: Base | None = None, **kwargs):
+        layer = RegionLayer(*args, **kwargs)
+        self.insert_before(before, layer)
+        return layer
+
+    def add_outline_layer(self, *args, before: Base | None = None, **kwargs):
+        layer = OutlineLayer(*args, **kwargs)
+        self.insert_before(before, layer)
+        return layer
+
     def add_group_layer(self, *args, before: Base | None = None, **kwargs):
         layer = GroupLayer(*args, **kwargs)
         self.insert_before(before, layer)
@@ -153,6 +215,17 @@ class Grouping(Base):
 
 class GroupLayer(Layer, Grouping):
     origin = Param(Vector)
+    transformation = Param(Transformation)
+    speed = Param(Real)
+    zoom = Param(Real)
+    time_offset = Param(Time)
+    lock_selection = Param(Boolean)
+    focus = Param(Vector)
+    outline_grow = Param(Real)
+    z_range = Param(Boolean)
+    z_range_position = Param(Real)
+    z_range_depth = Param(Real)
+    z_range_blur = Param(Real)
 
     def __init__(self, desc="", **kwargs):
         super().__init__("group", version="0.1", desc=desc, **kwargs)
@@ -191,3 +264,7 @@ class ExternalCanvasLayer(Layer):
         et.SubElement(canvas_param, "canvas", {"use": self.use})
 
         return element
+
+
+# Synfig registers the PasteCanvas name as an alias for its group layer.
+PasteCanvasLayer = GroupLayer
