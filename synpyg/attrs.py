@@ -13,6 +13,19 @@ from .kinds import (
     TimeKind,
 )
 
+VALID_INTERPOLATIONS = (
+    "auto",
+    "clamped",
+    "constant",
+    "ease",
+    "halt",
+    "linear",
+    "manual",
+)
+
+# Shared by every interpolation attribute descriptor.
+_INTERPOLATION_KIND = EnumKind(VALID_INTERPOLATIONS)
+
 
 class StringAttr(Attr[str]):
     def __init__(self, name: str | None = None, **ctx):
@@ -52,6 +65,11 @@ class TimeAttr(Attr[float]):
 class StringEnumAttr(Attr[str]):
     def __init__(self, choices, name: str | None = None, **ctx):
         super().__init__(EnumKind(choices), name, **ctx)
+
+
+class InterpolationAttr(Attr[str]):
+    def __init__(self, name: str | None = None, **ctx):
+        super().__init__(_INTERPOLATION_KIND, name, **ctx)
 
 
 class QuadFloatAttr(Attr[tuple[float, ...]]):

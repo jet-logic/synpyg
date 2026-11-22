@@ -1,19 +1,9 @@
-from .attrs import FloatAttr, StringAttr, StringEnumAttr, TimeAttr
+from .attrs import FloatAttr, InterpolationAttr, StringAttr, StringEnumAttr, TimeAttr
 from .ref import Ref
 from .timeutil import tosec
 from .value import Value, ValueKind
 from .base import WithFields, WithXML
 from .track.timecmp import same_time as _same_time
-
-VALID_INTERPOLATIONS = (
-    "auto",
-    "clamped",
-    "constant",
-    "ease",
-    "halt",
-    "linear",
-    "manual",
-)
 
 
 def _map_values(fn, *values):
@@ -84,8 +74,8 @@ class Waypoint(WithFields, WithXML):
     # users are expected to use Animated.add_keyframe,
     value: Value | Ref  # child element (or `use`), not an XML attribute, so not a Field
     time = TimeAttr(required=True)
-    before = StringEnumAttr(choices=VALID_INTERPOLATIONS)
-    after = StringEnumAttr(choices=VALID_INTERPOLATIONS)
+    before = InterpolationAttr()
+    after = InterpolationAttr()
     tension = FloatAttr()
     temporal_tension = FloatAttr(name="temporal-tension")
     continuity = FloatAttr()
@@ -126,7 +116,7 @@ class Animated(WithFields):
 
     id = StringAttr()
     guid = StringAttr()
-    interpolation = StringEnumAttr(choices=VALID_INTERPOLATIONS)
+    interpolation = InterpolationAttr()
 
     def __init__(
         self, kind: ValueKind | type[Value], *, id=None, guid=None, interpolation=None

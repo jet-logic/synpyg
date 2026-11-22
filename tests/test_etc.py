@@ -87,8 +87,6 @@ class Test(unittest.TestCase):
                 width=1920,
                 height=1080,
                 fps=24.000,
-                begin_time="0f",
-                end_time="5s",
                 view_box="-10 5.625 10 -5.625",
             )
 
@@ -114,6 +112,7 @@ class Test(unittest.TestCase):
             anim.add_keyframe(4, Vector([6, 0]), before="clamped", after="clamped")
             anim.add_keyframe(5, Vector([6, 0]), before="clamped", after="clamped")
 
+            canvas.fill_time_range()
             canvas.save_xml(out)
             self.assertTrue(out.is_file())
 
