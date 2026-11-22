@@ -24,5 +24,9 @@ class Kind(Generic[T]):
         """Serialize an already-coerced value."""
         return str(value)
 
+    def interpolate(self, start: T, end: T, amount: float) -> T:
+        """Interpolate between two coerced values, when supported by this Kind."""
+        raise TypeError(f"{type(self).__name__} does not support interpolation")
+
     def add(self, a: T, b: T) -> T:
         raise NotImplementedError()

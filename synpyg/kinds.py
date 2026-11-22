@@ -21,6 +21,11 @@ class StringKind(Kind[str]):
             raise ValueError(f"{name} must be a string, got {type(value).__name__}")
         return value
 
+    def interpolate(self, start: str, end: str, amount: float) -> str:
+        # Synfig treats strings as discrete values: hold the old value until
+        # the next waypoint is reached.
+        return end if amount >= 1.0 else start
+
 
 class FloatKind(Kind[float]):
     def coerce(
@@ -30,6 +35,20 @@ class FloatKind(Kind[float]):
 
     def dump(self, value: float) -> str:
         return fmt_num(value)
+
+    def interpolate(self, start: float, end: float, amount: float) -> float:
+        return start + (end - start) * amount
+
+
+class AngleKind(FloatKind):
+    """Interpolate angles along Synfig's shortest angular distance.
+
+    Angle values in SIF are expressed in degrees.
+    """
+
+    def interpolate(self, start: float, end: float, amount: float) -> float:
+        delta = (end - start + 180.0) % 360.0 - 180.0
+        return start + delta * amount
 
 
 class PositiveFloatKind(FloatKind):
@@ -47,6 +66,15 @@ class IntKind(Kind[int]):
         self, value: Any, *, name: str = "value", owner: object | None = None
     ) -> int:
         return to_int(value, name=name)
+
+    def interpolate(self, start: int, end: int, amount: float) -> int:
+        if amount == 0.0:
+            return start
+        if amount == 1.0:
+            return end
+        # Synfig's integer Hermite interpolator uses fixed-point premultiply /
+        # demultiply with a half-unit rounding offset.
+        return int(start + (end - start) * amount + 0.5)
 
 
 class PositiveIntKind(IntKind):
@@ -80,6 +108,9 @@ class BoolKind(Kind[bool]):
     def dump(self, value: bool) -> str:
         return "true" if value else "false"
 
+    def interpolate(self, start: bool, end: bool, amount: float) -> bool:
+        return end if amount >= 1.0 else start
+
 
 class TimeKind(Kind[float]):
     """Seconds, parsed from "1s", "500ms", "1:30", "12f", ...
@@ -105,6 +136,9 @@ class TimeKind(Kind[float]):
     def dump(self, value: float) -> str:
         return fmt_time(value)
 
+    def interpolate(self, start: float, end: float, amount: float) -> float:
+        return start + (end - start) * amount
+
 
 class EnumKind(Kind[str]):
     def __init__(self, choices) -> None:
@@ -125,6 +159,9 @@ class EnumKind(Kind[str]):
         if value not in self.choices:
             raise ValueError(f"{name}: expected one of {self.choices!r}, got {value!r}")
         return value
+
+    def interpolate(self, start: str, end: str, amount: float) -> str:
+        return end if amount >= 1.0 else start
 
 
 class FloatTupleKind(Kind[tuple[float, ...]]):
@@ -155,6 +192,13 @@ class FloatTupleKind(Kind[tuple[float, ...]]):
 
     def dump(self, value: tuple[float, ...]) -> str:
         return " ".join(fmt_num(v) for v in value)
+
+    def interpolate(
+        self, start: tuple[float, ...], end: tuple[float, ...], amount: float
+    ) -> tuple[float, ...]:
+        if len(start) != self._length or len(end) != self._length:
+            raise ValueError(f"both values must have {self._length} components")
+        return tuple(a + (b - a) * amount for a, b in zip(start, end))
 
 
 String = StringKind()

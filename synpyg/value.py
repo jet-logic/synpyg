@@ -143,7 +143,7 @@ class String(Const):
 
 class Angle(_Summable):
     tag = "angle"
-    data_kind = kinds.Number
+    data_kind = kinds.AngleKind()
 
 
 class Time(_Summable):
@@ -247,6 +247,13 @@ class ValueKind(Kind[Value]):
         a = self.value_type.coerce(a)
         b = self.value_type.coerce(b)
         return a.add(b)
+
+    def interpolate(self, start: "Value", end: "Value", amount: float) -> Value:
+        """Interpolate the underlying data and wrap it in this Value type."""
+        start = self.value_type.coerce(start)
+        end = self.value_type.coerce(end)
+        data = self.value_type.data_kind.interpolate(start.data, end.data, amount)
+        return self.value_type(data)
 
     def new_animated(self) -> "Animated":
         """Create an :class:`Animated` that produces values of this kind."""
