@@ -16,6 +16,70 @@ VALID_INTERPOLATIONS = (
 )
 
 
+def _map_values(fn, *values):
+    """Apply a scalar operation recursively to scalar/tuple value data."""
+    first = values[0]
+    if isinstance(first, tuple):
+        return tuple(
+            _map_values(fn, *(v[i] for v in values)) for i in range(len(first))
+        )
+    return fn(*values)
+
+
+def _scale(value, factor):
+    return _map_values(lambda x: x * factor, value)
+
+
+def _add(*values):
+    return _map_values(lambda *xs: sum(xs), *values)
+
+
+def _sub(a, b):
+    return _map_values(lambda x, y: x - y, a, b)
+
+
+def _component_clamped_tangent(p0, p1, p2, t0, t1, t2):
+    """Synfig's component-wise clamped tangent calculation."""
+    if t2 == t0:
+        return 0.0
+    projected = p0 + (p2 - p0) * (t1 - t0) / (t2 - t0)
+    if p2 > p0:
+        if p1 >= p2 or p1 <= p0:
+            return 0.0
+        if p1 > projected:
+            bias = (projected - p1) / (p2 - projected)
+        elif p1 < projected:
+            bias = (projected - p1) / (projected - p0)
+        else:
+            bias = 0.0
+    elif p0 > p2:
+        if p1 >= p0 or p1 <= p2:
+            return 0.0
+        if p1 > projected:
+            bias = (projected - p1) / (projected - p0)
+        elif p1 < projected:
+            bias = (projected - p1) / (p2 - projected)
+        else:
+            bias = 0.0
+    else:
+        return 0.0
+    return (p1 - p0) * (1.0 + bias) / 2.0 + (p2 - p1) * (1.0 - bias) / 2.0
+
+
+def _clamped_tangent(p0, p1, p2, t0, t1, t2):
+    return _map_values(_component_clamped_tangent, p0, p1, p2, t0, t1, t2)
+
+
+def _hermite(p0, p1, m0, m1, u):
+    u2, u3 = u * u, u * u * u
+    return _add(
+        _scale(p0, 2 * u3 - 3 * u2 + 1),
+        _scale(m0, u3 - 2 * u2 + u),
+        _scale(p1, -2 * u3 + 3 * u2),
+        _scale(m1, u3 - u2),
+    )
+
+
 class Waypoint(WithFields, WithXML):
     # users are expected to use Animated.add_keyframe,
     value: Value | Ref  # child element (or `use`), not an XML attribute, so not a Field
@@ -194,6 +258,182 @@ class Animated(WithFields):
 
     def _ordered_waypoints(self) -> list[Waypoint]:
         return sorted(self.waypoints, key=lambda w: w.time)  # stable
+
+    def at(self, time: float) -> Value:
+        """Evaluate the animation at ``time`` (seconds).
+
+        Values outside the waypoint range are held at the nearest endpoint.
+        Between waypoints, the left waypoint's ``after`` and the right
+        waypoint's ``before`` settings control the segment.
+        """
+        return self._at(tosec(time), set())
+
+    def _at(self, time: float, seen: set[int]) -> Value:
+        if id(self) in seen:
+            raise ValueError("cyclic Animated reference while evaluating animation")
+        seen.add(id(self))
+        try:
+            waypoints = self._ordered_waypoints()
+            if not waypoints:
+                raise ValueError("cannot evaluate an animation with no waypoints")
+
+            # Validate direct edits to the public waypoint list as well.
+            for waypoint in waypoints:
+                self._check_waypoint(waypoint)
+                if "time" not in waypoint.__dict__:
+                    raise ValueError("animation contains a waypoint with no time")
+                if "value" not in waypoint.__dict__:
+                    raise ValueError(
+                        f"animation contains a waypoint with no value "
+                        f"(time={waypoint.time!r}s)"
+                    )
+
+            times = [wp.time for wp in waypoints]
+            from bisect import bisect_right
+
+            right_index = bisect_right(times, time)
+            if right_index == 0:
+                return self._resolve_waypoint(waypoints[0], time, seen)
+            left = waypoints[right_index - 1]
+            if right_index == len(waypoints) or time == left.time:
+                return self._resolve_waypoint(left, time, seen)
+            right = waypoints[right_index]
+            if right.time <= left.time:
+                return self._resolve_waypoint(left, time, seen)
+
+            start = self._resolve_waypoint(left, time, seen)
+            end = self._resolve_waypoint(right, time, seen)
+            duration = right.time - left.time
+            amount = (time - left.time) / duration
+
+            global_mode = self.__dict__.get("interpolation")
+            before = global_mode or right.__dict__.get("before", "auto")
+            after = global_mode or left.__dict__.get("after", "auto")
+            if "constant" in (before, after):
+                return start
+
+            # Synfig's Boolean interpolator is discrete, independent of the
+            # waypoint interpolation mode. Other discrete kinds use the Kind
+            # implementation's endpoint-switch behavior.
+            # Temporal tension changes the time parameterization. Invert the
+            # cubic time curve with bisection, as Synfig does for Hermite paths.
+            tt0 = left.__dict__.get("temporal_tension", 0.0)
+            tt1 = right.__dict__.get("temporal_tension", 0.0)
+            if tt0 or tt1:
+                target = amount
+                lo, hi = 0.0, 1.0
+                for _ in range(40):
+                    u = (lo + hi) / 2
+                    mapped = _hermite(0.0, 1.0, 1.0 - tt0, 1.0 - tt1, u)
+                    if mapped < target:
+                        lo = u
+                    else:
+                        hi = u
+                amount = (lo + hi) / 2
+
+            if isinstance(start.data, (bool, str)):
+                return self.kind.interpolate(start, end, amount)
+
+            if after == "linear" and before == "linear":
+                return self.kind.interpolate(start, end, amount)
+
+            # Angles do not use TCB/clamped interpolation in Synfig.
+            if self.kind.name == "Angle" and (
+                after in ("auto", "clamped") or before in ("auto", "clamped")
+            ):
+                return self.kind.interpolate(start, end, amount)
+
+            p0, p1 = start.data, end.data
+            secant = _sub(p1, p0)
+            m0 = secant
+            m1 = secant
+
+            if after in ("ease", "halt", "manual"):
+                m0 = _scale(secant, 0.0)
+            elif after == "auto" and right_index >= 2:
+                prev = waypoints[right_index - 2]
+                prev_value = self._resolve_waypoint(prev, time, seen).data
+                tension = left.__dict__.get("tension", 0.0)
+                continuity = left.__dict__.get("continuity", 0.0)
+                bias = left.__dict__.get("bias", 0.0)
+                d_prev = _sub(p0, prev_value)
+                m0 = _add(
+                    _scale(d_prev, (1 - tension) * (1 + continuity) * (1 + bias) / 2),
+                    _scale(secant, (1 - tension) * (1 - continuity) * (1 - bias) / 2),
+                )
+                prev_dt = left.time - prev.time
+                if prev_dt > 0:
+                    m0 = _scale(m0, duration * 1.5 / (duration * 0.5 + prev_dt))
+            elif (
+                after == "clamped"
+                and right_index >= 2
+                and waypoints[right_index - 2].time < left.time
+            ):
+                prev = waypoints[right_index - 2]
+                prev_value = self._resolve_waypoint(prev, time, seen).data
+                m0 = _clamped_tangent(
+                    prev_value, p0, p1, prev.time, left.time, right.time
+                )
+            elif after == "clamped":
+                m0 = secant
+
+            if before in ("ease", "halt", "manual"):
+                m1 = _scale(secant, 0.0)
+            elif before == "auto" and right_index + 1 < len(waypoints):
+                nxt = waypoints[right_index + 1]
+                next_value = self._resolve_waypoint(nxt, time, seen).data
+                tension = right.__dict__.get("tension", 0.0)
+                continuity = right.__dict__.get("continuity", 0.0)
+                bias = right.__dict__.get("bias", 0.0)
+                d_next = _sub(next_value, p1)
+                m1 = _add(
+                    _scale(secant, (1 - tension) * (1 - continuity) * (1 + bias) / 2),
+                    _scale(d_next, (1 - tension) * (1 + continuity) * (1 - bias) / 2),
+                )
+                next_dt = nxt.time - right.time
+                if next_dt > 0:
+                    m1 = _scale(m1, duration * 1.5 / (duration * 0.5 + next_dt))
+            elif (
+                before == "clamped"
+                and right_index + 1 < len(waypoints)
+                and waypoints[right_index + 1].time > right.time
+            ):
+                nxt = waypoints[right_index + 1]
+                next_value = self._resolve_waypoint(nxt, time, seen).data
+                m1 = _clamped_tangent(
+                    p0, p1, next_value, left.time, right.time, nxt.time
+                )
+            elif before == "clamped":
+                m1 = secant
+
+            data = _hermite(p0, p1, m0, m1, amount)
+            if isinstance(p0, int) and not isinstance(p0, bool):
+                data = int(data + 0.5)
+            return self.kind.value_type(data)
+        finally:
+            seen.remove(id(self))
+
+    def _resolve_waypoint(
+        self, waypoint: Waypoint, time: float, seen: set[int]
+    ) -> Value:
+        value = waypoint.value
+        if isinstance(value, Ref):
+            target = value.target
+            if isinstance(target, str):
+                raise ValueError(
+                    f"cannot evaluate unresolved reference {target!r}; "
+                    "resolve it to a Value or Animated first"
+                )
+            if isinstance(target, Animated):
+                value = target._at(time, seen)
+            else:
+                value = target
+        if not isinstance(value, self.kind.value_type):
+            raise ValueError(
+                f"waypoint at {waypoint.time!r}s has {type(value).__name__}, "
+                f"expected {self.kind.name}"
+            )
+        return value
 
 
 # src reference : CanvasParser::parse_animated
