@@ -321,6 +321,11 @@ class Animated(WithFields):
                         hi = u
                 amount = (lo + hi) / 2
 
+            # Composite values with their own interpolation operate on the
+            # complete value, not on the generic scalar/tuple TCB data path.
+            if type(start).interpolate is not Value.interpolate:
+                return self.kind.interpolate(start, end, amount)
+
             if isinstance(start.data, (bool, str)):
                 return self.kind.interpolate(start, end, amount)
 

@@ -53,6 +53,15 @@ class Value(WithFields, WithXML):
         """Create an :class:`Animated` value node that produces values of ``cls``."""
         return cls.as_kind().new_animated()
 
+    def interpolate(self, other: "Value", amount: float) -> Self:
+        """Interpolate to ``other``; composite subclasses may override this.
+
+        The default implementation is intentionally unsupported. Scalar and
+        fixed-tuple values are interpolated by :class:`ValueKind` using their
+        ``data_kind`` instead.
+        """
+        raise TypeError(f"{type(self).__name__} values cannot be interpolated")
+
     def add(self, other: "Value") -> Self:
         """Return a new value that is ``self + other`` (used by ``add=True`` waypoints).
 
@@ -183,6 +192,61 @@ class Vector(_Floats):
         return element
 
 
+class Segment(Value):
+    """One cubic Bézier segment: endpoints ``p1``/``p2`` and tangent vectors.
+
+    Tangents are control-handle offsets relative to their respective endpoints.
+    """
+
+    tag = "segment"
+
+    def __init__(self, p1=(0, 0), t1=(0, 0), p2=(0, 0), t2=(0, 0), **kwargs):
+        super().__init__(**kwargs)
+        self.data = tuple(Vector.coerce(v) for v in (p1, t1, p2, t2))
+
+    @classmethod
+    def check_value(cls, value):
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, dict):
+            return cls(**value)
+        if isinstance(value, (tuple, list)) and len(value) == 4:
+            return cls(*value)
+        raise ValueError("Segment expects p1, t1, p2, and t2")
+
+    @property
+    def p1(self):
+        return self.data[0]
+
+    @property
+    def t1(self):
+        return self.data[1]
+
+    @property
+    def p2(self):
+        return self.data[2]
+
+    @property
+    def t2(self):
+        return self.data[3]
+
+    def interpolate(self, other: "Segment", amount: float) -> "Segment":
+        """Linearly interpolate all four Bézier vectors independently."""
+        other = type(self).coerce(other)
+        vectors = (
+            Vector(tuple(a + (b - a) * amount for a, b in zip(left.data, right.data)))
+            for left, right in zip(self.data, other.data)
+        )
+        return type(self)(*vectors)
+
+    def to_xml_element(self, et):
+        element = et.Element(self.tag, self._xml_attrs())
+        for name, vector in zip(("p1", "t1", "p2", "t2"), self.data):
+            child = et.SubElement(element, name)
+            child.append(vector.to_xml_element(et))
+        return element
+
+
 class ValueKind(Kind[Value]):
     """A ``Kind`` for a whole ``Value`` type: ``ValueKind.of(Real)``.
 
@@ -252,6 +316,8 @@ class ValueKind(Kind[Value]):
         """Interpolate the underlying data and wrap it in this Value type."""
         start = self.value_type.coerce(start)
         end = self.value_type.coerce(end)
+        if type(start).interpolate is not Value.interpolate:
+            return start.interpolate(end, amount)
         data = self.value_type.data_kind.interpolate(start.data, end.data, amount)
         return self.value_type(data)
 

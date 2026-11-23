@@ -4,7 +4,7 @@ from xml.etree import ElementTree as ET
 from synpyg.layer import Layer
 from synpyg.animated import Animated
 from synpyg.base import Param
-from synpyg.value import Angle, Color, String, Vector
+from synpyg.value import Angle, Color, Segment, String, Vector
 from synpyg.numeric import to_float, to_int
 from synpyg.attrs import QuadFloatAttr
 
@@ -81,6 +81,48 @@ class ValueShapeTest(unittest.TestCase):
     def test_color_accepts_list_and_tuple(self):
         self.assertEqual(Color([1, 2, 3, 4]).data, (1.0, 2.0, 3.0, 4.0))
         self.assertEqual(Color((1, 2, 3, 4)).data, (1.0, 2.0, 3.0, 4.0))
+
+
+
+class SegmentValueTest(unittest.TestCase):
+    def setUp(self):
+        self.start = Segment((0, 1), (2, 3), (4, 5), (6, 7))
+        self.end = Segment((10, 11), (12, 13), (14, 15), (16, 17))
+
+    def test_segment_components_and_coercion(self):
+        self.assertEqual(self.start.p1.data, (0.0, 1.0))
+        self.assertEqual(self.start.t1.data, (2.0, 3.0))
+        self.assertEqual(self.start.p2.data, (4.0, 5.0))
+        self.assertEqual(self.start.t2.data, (6.0, 7.0))
+        self.assertIs(Segment.coerce(self.start), self.start)
+        self.assertEqual(Segment.coerce([ (0, 1), (2, 3), (4, 5), (6, 7) ]).p2.data, (4.0, 5.0))
+        self.assertEqual(Segment.coerce({"p1": (0, 1), "t1": (2, 3), "p2": (4, 5), "t2": (6, 7)}).t2.data, (6.0, 7.0))
+
+    def test_segment_requires_four_vectors(self):
+        for bad in ((), ((0, 0),), ((0, 0),) * 3, ((0, 0),) * 5):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                Segment.coerce(bad)
+
+    def test_segment_xml_shape(self):
+        element = self.start.to_xml_element(ET)
+        self.assertEqual(element.tag, "segment")
+        self.assertEqual([child.tag for child in element], ["p1", "t1", "p2", "t2"])
+        self.assertEqual(element.find("p2/vector/x").text, "4")
+
+    def test_segment_interpolates_each_vector(self):
+        middle = Segment.as_kind().interpolate(self.start, self.end, 0.25)
+        self.assertEqual(middle.p1.data, (2.5, 3.5))
+        self.assertEqual(middle.t1.data, (4.5, 5.5))
+        self.assertEqual(middle.p2.data, (6.5, 7.5))
+        self.assertEqual(middle.t2.data, (8.5, 9.5))
+
+    def test_segment_animated_interpolation(self):
+        animated = Animated(Segment)
+        animated.add_keyframe(0, self.start, after="linear")
+        animated.add_keyframe(1, self.end, before="linear")
+        middle = animated.at(0.5)
+        self.assertEqual(middle.p1.data, (5.0, 6.0))
+        self.assertEqual(middle.t2.data, (11.0, 12.0))
 
 
 class NumericConversionTests(unittest.TestCase):
