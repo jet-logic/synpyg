@@ -106,6 +106,10 @@ class Param(Field):
 
         self.kind = ValueKind.of(typed)
 
+    def __set_name__(self, owner, attr):
+        super().__set_name__(owner, attr)
+        self.ctx["name"] = self.ctx.get("name") or attr.rstrip("_")
+
     @property
     def typed(self) -> "type[Value]":
         return self.kind.value_type
@@ -119,7 +123,7 @@ class Param(Field):
             return self
         prop = obj.__dict__.get(self.py_name)
         if prop is None:
-            prop = obj.__dict__[self.py_name] = Property(self.kind, self.out_name)
+            prop = obj.__dict__[self.py_name] = Property(self.kind, self.ctx["name"])
         return prop
 
     def __set__(self, obj, value: Any):
@@ -181,4 +185,7 @@ class WithFields(Declarative):
         for k, f in self._attr_fields():
             if f.ctx.get("required") and k not in d:
                 raise ValueError(f"{self.__class__.__name__} has no {k}")
-        return {f.out_name: f.dump_value(v) for _, f, v in self._enum_fields()}
+        return {
+            f.ctx.get("name") or k.rstrip("_"): f.dump_value(v)
+            for k, f, v in self._enum_fields()
+        }

@@ -19,7 +19,6 @@ class Field:
     def __init__(self, **kwargs):
         self.ctx = kwargs
         self.py_name: str = ""
-        self.out_name: str = kwargs.get("name") or ""
 
     def __set_name__(self, owner, attr):
         if self.py_name and self.py_name != attr:
@@ -28,7 +27,6 @@ class Field:
                 f"create a separate instance for {attr!r}"
             )
         self.py_name = attr
-        self.out_name = self.ctx.get("name") or attr.rstrip("_")
 
     def __get__(self, obj: object | None, owner: type | None = None):
         if obj is None:

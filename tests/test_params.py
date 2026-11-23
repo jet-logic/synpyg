@@ -14,7 +14,6 @@ def param_names(layer):
 class ParamDescriptorTest(unittest.TestCase):
     def test_class_access_returns_descriptor(self):
         self.assertIsInstance(CircleLayer.radius, Param)
-        self.assertEqual(CircleLayer.radius.out_name, "radius")
 
     def test_declared_params_inherit_base_first(self):
         self.assertEqual(
@@ -87,8 +86,18 @@ class ParamDescriptorTest(unittest.TestCase):
             from_ = Param(Real)
             z = Param(Real, "z-depth")
 
-        self.assertEqual(L.from_.out_name, "from")
-        self.assertEqual(L.z.out_name, "z-depth")
+        layer = L("")
+        layer.from_ = 1
+        layer.z = 2
+        self.assertEqual(param_names(layer), ["from", "z-depth"])
+
+    def test_explicit_param_name_is_preserved(self):
+        class L(Layer):
+            z = Param(Real, "z-depth")
+
+        layer = L("")
+        layer.z = 2
+        self.assertEqual(param_names(layer), ["z-depth"])
 
     def test_set_params_unknown_raises_typeerror(self):
         with self.assertRaises(TypeError):
