@@ -2,7 +2,18 @@ from .animated import Animated
 from .base import Base, Param, WithXML, WithFields
 from .ref import Ref
 from .value import (
-    Angle, Color, Gradient, Integer, Real, Time, Vector, Boolean, Spline, Transformation
+    Angle,
+    Color,
+    DashItemList,
+    Gradient,
+    Integer,
+    Real,
+    Time,
+    Vector,
+    Boolean,
+    Spline,
+    Transformation,
+    WidthPointList,
 )
 from .attrs import BoolAttr, StringAttr
 
@@ -192,6 +203,26 @@ class SpiralGradientLayer(_GradientLayer):
         super().__init__("spiral_gradient", version="0.1", desc=desc, **kwargs)
 
 
+class AdvancedOutlineLayer(_ShapeLayer):
+    """Variable-width spline outline with optional dash pattern."""
+
+    width = Param(Real)
+    expand = Param(Real)
+    start_tip = Param(Integer)
+    end_tip = Param(Integer)
+    cusp_type = Param(Integer)
+    smoothness = Param(Real)
+    homogeneous = Param(Boolean)
+    wplist = Param(WidthPointList)
+    fast = Param(Boolean)
+    dash_enabled = Param(Boolean)
+    dilist = Param(DashItemList)
+    dash_offset = Param(Real)
+
+    def __init__(self, desc="", **kwargs):
+        super().__init__("advanced_outline", version="0.3", desc=desc, **kwargs)
+
+
 class MotionBlurLayer(Layer):
     """
     A Synfig Motion Blur layer with all standard parameters.
@@ -239,6 +270,11 @@ class Grouping(Base):
 
     def add_outline_layer(self, *args, before: Base | None = None, **kwargs):
         layer = OutlineLayer(*args, **kwargs)
+        self.insert_before(before, layer)
+        return layer
+
+    def add_advanced_outline_layer(self, *args, before: Base | None = None, **kwargs):
+        layer = AdvancedOutlineLayer(*args, **kwargs)
         self.insert_before(before, layer)
         return layer
 

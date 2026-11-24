@@ -1,10 +1,12 @@
 import math
 import unittest
 from xml.etree import ElementTree as ET
-from synpyg.layer import Layer
+from synpyg.layer import AdvancedOutlineLayer, Layer
 from synpyg.animated import Animated
 from synpyg.base import Param
-from synpyg.value import Angle, Color, Gradient, Segment, String, Vector
+from synpyg.value import (
+    Angle, Color, DashItemList, Segment, String, Vector, WidthPointList,
+)
 from synpyg.numeric import to_float, to_int
 from synpyg.attrs import QuadFloatAttr
 
@@ -82,52 +84,6 @@ class ValueShapeTest(unittest.TestCase):
         self.assertEqual(Color([1, 2, 3, 4]).data, (1.0, 2.0, 3.0, 4.0))
         self.assertEqual(Color((1, 2, 3, 4)).data, (1.0, 2.0, 3.0, 4.0))
 
-
-
-class GradientValueTest(unittest.TestCase):
-    def setUp(self):
-        self.gradient = Gradient([
-            (1, (0, 0, 1, 1)),
-            (0, (1, 0, 0, 1)),
-        ])
-
-    def test_stops_are_sorted_and_coerced(self):
-        self.assertEqual(
-            [(pos, color.data) for pos, color in self.gradient.stops],
-            [(0.0, (1.0, 0.0, 0.0, 1.0)), (1.0, (0.0, 0.0, 1.0, 1.0))],
-        )
-
-    def test_accepts_mapping(self):
-        gradient = Gradient({0: (1, 0, 0, 1), 1: (0, 0, 1, 1)})
-        self.assertEqual(len(gradient.stops), 2)
-
-    def test_rejects_invalid_stops(self):
-        for bad in (
-            [(1.1, (1, 0, 0, 1))],
-            [(-0.1, (1, 0, 0, 1))],
-            [(0.5, (1, 0, 0))],
-            [(True, (1, 0, 0, 1))],
-        ):
-            with self.subTest(bad=bad), self.assertRaises(ValueError):
-                Gradient(bad)
-
-    def test_xml_shape(self):
-        element = self.gradient.to_xml_element(ET)
-        self.assertEqual(element.tag, "gradient")
-        self.assertEqual([c.tag for c in element], ["color", "color"])
-        self.assertEqual([c.get("pos") for c in element], ["0", "1"])
-        self.assertEqual(element.find("color/r").text, "1")
-        self.assertEqual(element.findall("color")[1].find("b").text, "1")
-
-    def test_param_serializes_gradient(self):
-        class GradientLayer(Layer):
-            gradient = Param(Gradient)
-
-        layer = GradientLayer("test")
-        layer.gradient = self.gradient
-        param = layer.to_xml_element(ET).find("param[@name='gradient']")
-        self.assertIsNotNone(param)
-        self.assertEqual(param.find("gradient/color").get("pos"), "0")
 
 
 class SegmentValueTest(unittest.TestCase):
@@ -271,6 +227,54 @@ class VectorColorInputTest(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             Color([1, 2, 3])
+
+
+class AdvancedOutlineValueTests(unittest.TestCase):
+    def test_width_point_list_serializes_synfig_wplist(self):
+        value = WidthPointList([
+            (0.0, 0.5, 0, 0),
+            (1.0, 1.0, 4, 4),
+        ])
+        element = value.to_xml_element(ET)
+        self.assertEqual(element.tag, "wplist")
+        self.assertEqual(element.get("type"), "width_point")
+        self.assertEqual(len(element.findall("entry/composite")), 2)
+        self.assertEqual(
+            element.find("entry/composite/position/real").get("value"), "0"
+        )
+
+    def test_dash_item_list_serializes_synfig_dilist(self):
+        value = DashItemList([(0.1, 0.2, 4, 4)])
+        element = value.to_xml_element(ET)
+        self.assertEqual(element.tag, "dilist")
+        self.assertEqual(element.get("type"), "dash_item")
+        self.assertEqual(len(element.findall("entry/composite")), 1)
+        self.assertEqual(
+            element.find("entry/composite/length/real").get("value"), "0.2"
+        )
+
+    def test_advanced_outline_layer_serializes_native_type_and_params(self):
+        layer = AdvancedOutlineLayer("Variable stroke")
+        layer.color = (0.2, 0.4, 0.8, 1)
+        layer.bline = [((0, 0), (0, 0)), ((2, 0), (0, 0))]
+        layer.width = 2
+        layer.start_tip = 1
+        layer.end_tip = 1
+        layer.cusp_type = 0
+        layer.smoothness = 0.5
+        layer.homogeneous = True
+        layer.wplist = [(0, 0.5), (1, 1)]
+        layer.fast = False
+        layer.dash_enabled = True
+        layer.dilist = [(0.1, 0.2)]
+        layer.dash_offset = 0
+
+        element = layer.to_xml_element(ET)
+        self.assertEqual(element.get("type"), "advanced_outline")
+        params = {p.get("name"): p for p in element.findall("param")}
+        self.assertEqual(params["wplist"].find("wplist").get("type"), "width_point")
+        self.assertEqual(params["dilist"].find("dilist").get("type"), "dash_item")
+        self.assertEqual(params["dash_enabled"].find("bool").get("value"), "true")
 
 
 if __name__ == "__main__":

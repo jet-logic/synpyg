@@ -393,8 +393,15 @@ class SplinePoint:
     ``tangent1``; set ``split_tangent`` when the two handles differ.
     """
 
-    def __init__(self, vertex=(0, 0), tangent1=(0, 0), tangent2=None,
-                 width=1.0, origin=0.5, split_tangent=None):
+    def __init__(
+        self,
+        vertex=(0, 0),
+        tangent1=(0, 0),
+        tangent2=None,
+        width=1.0,
+        origin=0.5,
+        split_tangent=None,
+    ):
         self.vertex = Vector(vertex)
         self.tangent1 = Vector(tangent1)
         self.tangent2 = Vector(tangent1 if tangent2 is None else tangent2)
@@ -402,7 +409,8 @@ class SplinePoint:
         self.origin = Real(origin)
         self.split_tangent = Boolean(
             self.tangent1.data != self.tangent2.data
-            if split_tangent is None else split_tangent
+            if split_tangent is None
+            else split_tangent
         )
 
     @classmethod
@@ -412,10 +420,15 @@ class SplinePoint:
         if isinstance(value, dict):
             return cls(**value)
         if isinstance(value, (tuple, list)) and len(value) == 2:
-            if all(isinstance(component, (int, float)) and not isinstance(component, bool) for component in value):
+            if all(
+                isinstance(component, (int, float)) and not isinstance(component, bool)
+                for component in value
+            ):
                 return cls(vertex=value)
             return cls(vertex=value[0], tangent1=value[1])
-        raise ValueError(f"expected SplinePoint, mapping, or (vertex, tangent), got {value!r}")
+        raise ValueError(
+            f"expected SplinePoint, mapping, or (vertex, tangent), got {value!r}"
+        )
 
     def to_xml_element(self, et):
         # Synfig's composite representation preserves split handles.
@@ -427,11 +440,24 @@ class SplinePoint:
                 continue
             radial = et.SubElement(element, name, {"type": "vector"})
             radius = et.SubElement(radial, "radius")
-            radius.append(Real((tangent.data[0] ** 2 + tangent.data[1] ** 2) ** 0.5).to_xml_element(et))
+            radius.append(
+                Real(
+                    (tangent.data[0] ** 2 + tangent.data[1] ** 2) ** 0.5
+                ).to_xml_element(et)
+            )
             import math
+
             theta = et.SubElement(radial, "theta")
-            theta.append(Angle(math.degrees(math.atan2(tangent.data[1], tangent.data[0]))).to_xml_element(et))
-        for name, value in (("width", self.width), ("origin", self.origin), ("split", self.split_tangent)):
+            theta.append(
+                Angle(
+                    math.degrees(math.atan2(tangent.data[1], tangent.data[0]))
+                ).to_xml_element(et)
+            )
+        for name, value in (
+            ("width", self.width),
+            ("origin", self.origin),
+            ("split", self.split_tangent),
+        ):
             child = et.SubElement(element, name)
             child.append(value.to_xml_element(et))
         return element
@@ -470,6 +496,166 @@ class Spline(Value):
         for point in self.points:
             entry = et.SubElement(element, "entry")
             entry.append(point.to_xml_element(et))
+        return element
+
+
+class WidthPoint:
+    """One variable-width control point used by Synfig's advanced outline."""
+
+    def __init__(
+        self,
+        position=0.0,
+        width=1.0,
+        side_before=0,
+        side_after=0,
+        lower_bound=0.0,
+        upper_bound=1.0,
+        guid="",
+    ):
+        self.position = Real(position)
+        self.width = Real(width)
+        self.side_before = Integer(side_before)
+        self.side_after = Integer(side_after)
+        self.lower_bound = Real(lower_bound)
+        self.upper_bound = Real(upper_bound)
+        self.guid = guid
+
+    @classmethod
+    def coerce(cls, value):
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, dict):
+            return cls(**value)
+        if isinstance(value, (tuple, list)) and 2 <= len(value) <= 4:
+            return cls(*value)
+        raise ValueError(
+            "WidthPoint expects a mapping or (position, width[, side_before, side_after])"
+        )
+
+    def to_xml_element(self, et):
+        element = et.Element("composite", {"type": "width_point"})
+        if self.guid:
+            element.set("guid", self.guid)
+
+        for name, value in (
+            ("position", self.position),
+            ("width", self.width),
+            ("side_before", self.side_before),
+            ("side_after", self.side_after),
+            ("lower_bound", self.lower_bound),
+            ("upper_bound", self.upper_bound),
+        ):
+            child = et.SubElement(element, name)
+            child.append(value.to_xml_element(et))
+        return element
+
+
+class WidthPointList(Value):
+    """Synfig ``wplist`` containing variable-width outline control points."""
+
+    tag = "wplist"
+
+    def __init__(self, points=(), loop=False, **kwargs):
+        super().__init__(**kwargs)
+        if isinstance(points, WidthPointList):
+            points, loop = points.data
+        self.data = (tuple(WidthPoint.coerce(p) for p in points), bool(loop))
+
+    @classmethod
+    def check_value(cls, value):
+        if isinstance(value, dict):
+            return cls(**value)
+        return cls(value)
+
+    @property
+    def points(self):
+        return self.data[0]
+
+    @property
+    def loop(self):
+        return self.data[1]
+
+    def to_xml_element(self, et):
+        attrs = {"type": "width_point"}
+        if self.loop:
+            attrs["loop"] = "true"
+        element = et.Element(self.tag, attrs)
+        for point in self.points:
+            entry = et.SubElement(element, "entry")
+            entry.append(point.to_xml_element(et))
+        return element
+
+
+class DashItem:
+    """One dash/gap segment in an advanced outline's dash pattern."""
+
+    def __init__(self, offset=0.1, length=0.1, side_before=4, side_after=4, guid=""):
+        self.offset = Real(offset)
+        self.length = Real(length)
+        self.side_before = Integer(side_before)
+        self.side_after = Integer(side_after)
+        self.guid = guid
+
+    @classmethod
+    def coerce(cls, value):
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, dict):
+            return cls(**value)
+        if isinstance(value, (tuple, list)) and 2 <= len(value) <= 4:
+            return cls(*value)
+        raise ValueError(
+            "DashItem expects a mapping or (offset, length[, side_before, side_after])"
+        )
+
+    def to_xml_element(self, et):
+        element = et.Element("composite", {"type": "dash_item"})
+        if self.guid:
+            element.set("guid", self.guid)
+        for name, value in (
+            ("offset", self.offset),
+            ("length", self.length),
+            ("side_before", self.side_before),
+            ("side_after", self.side_after),
+        ):
+            child = et.SubElement(element, name)
+            child.append(value.to_xml_element(et))
+        return element
+
+
+class DashItemList(Value):
+    """Synfig ``dilist`` containing dash/gap items."""
+
+    tag = "dilist"
+
+    def __init__(self, items=(), loop=False, **kwargs):
+        super().__init__(**kwargs)
+        if isinstance(items, DashItemList):
+            items, loop = items.data
+        self.data = (tuple(DashItem.coerce(item) for item in items), bool(loop))
+
+    @classmethod
+    def check_value(cls, value):
+        if isinstance(value, dict):
+            return cls(**value)
+        return cls(value)
+
+    @property
+    def items(self):
+        return self.data[0]
+
+    @property
+    def loop(self):
+        return self.data[1]
+
+    def to_xml_element(self, et):
+        attrs = {"type": "dash_item"}
+        if self.loop:
+            attrs["loop"] = "true"
+        element = et.Element(self.tag, attrs)
+        for item in self.items:
+            entry = et.SubElement(element, "entry")
+            entry.append(item.to_xml_element(et))
         return element
 
 
