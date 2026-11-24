@@ -4,7 +4,7 @@ from xml.etree import ElementTree as ET
 from synpyg.layer import Layer
 from synpyg.animated import Animated
 from synpyg.base import Param
-from synpyg.value import Angle, Color, Segment, String, Vector
+from synpyg.value import Angle, Color, Gradient, Segment, String, Vector
 from synpyg.numeric import to_float, to_int
 from synpyg.attrs import QuadFloatAttr
 
@@ -82,6 +82,52 @@ class ValueShapeTest(unittest.TestCase):
         self.assertEqual(Color([1, 2, 3, 4]).data, (1.0, 2.0, 3.0, 4.0))
         self.assertEqual(Color((1, 2, 3, 4)).data, (1.0, 2.0, 3.0, 4.0))
 
+
+
+class GradientValueTest(unittest.TestCase):
+    def setUp(self):
+        self.gradient = Gradient([
+            (1, (0, 0, 1, 1)),
+            (0, (1, 0, 0, 1)),
+        ])
+
+    def test_stops_are_sorted_and_coerced(self):
+        self.assertEqual(
+            [(pos, color.data) for pos, color in self.gradient.stops],
+            [(0.0, (1.0, 0.0, 0.0, 1.0)), (1.0, (0.0, 0.0, 1.0, 1.0))],
+        )
+
+    def test_accepts_mapping(self):
+        gradient = Gradient({0: (1, 0, 0, 1), 1: (0, 0, 1, 1)})
+        self.assertEqual(len(gradient.stops), 2)
+
+    def test_rejects_invalid_stops(self):
+        for bad in (
+            [(1.1, (1, 0, 0, 1))],
+            [(-0.1, (1, 0, 0, 1))],
+            [(0.5, (1, 0, 0))],
+            [(True, (1, 0, 0, 1))],
+        ):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                Gradient(bad)
+
+    def test_xml_shape(self):
+        element = self.gradient.to_xml_element(ET)
+        self.assertEqual(element.tag, "gradient")
+        self.assertEqual([c.tag for c in element], ["color", "color"])
+        self.assertEqual([c.get("pos") for c in element], ["0", "1"])
+        self.assertEqual(element.find("color/r").text, "1")
+        self.assertEqual(element.findall("color")[1].find("b").text, "1")
+
+    def test_param_serializes_gradient(self):
+        class GradientLayer(Layer):
+            gradient = Param(Gradient)
+
+        layer = GradientLayer("test")
+        layer.gradient = self.gradient
+        param = layer.to_xml_element(ET).find("param[@name='gradient']")
+        self.assertIsNotNone(param)
+        self.assertEqual(param.find("gradient/color").get("pos"), "0")
 
 
 class SegmentValueTest(unittest.TestCase):

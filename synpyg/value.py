@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, Self
+from collections.abc import Mapping
 from . import kinds
 from .attrs import StringAttr
 from .fields import Kind
@@ -178,6 +179,54 @@ class Color(_Floats):
         element = et.Element(self.tag, self._xml_attrs())
         for channel, n in zip(("r", "g", "b", "a"), self.data):
             et.SubElement(element, channel).text = fmt_num(n)
+        return element
+
+
+class Gradient(Value):
+    """An ordered sequence of (position, color) stops."""
+
+    tag = "gradient"
+
+    def __init__(self, stops=(), **kwargs):
+        super().__init__(**kwargs)
+        if isinstance(stops, Gradient):
+            stops = stops.stops
+        elif isinstance(stops, Mapping):
+            stops = stops.items()
+
+        parsed = []
+        for pos, color in stops:
+            pos = kinds.Number.coerce(pos, name="gradient position")
+            if not 0.0 <= pos <= 1.0:
+                raise ValueError(
+                    f"gradient position must be between 0 and 1, got {pos!r}"
+                )
+            parsed.append((pos, Color.coerce(color)))
+        self.data = tuple(sorted(parsed, key=lambda stop: stop[0]))
+
+    @classmethod
+    def check_value(cls, value):
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, (Mapping, list, tuple)):
+            return cls(value)
+        raise ValueError(
+            "Gradient expects a mapping or sequence of (position, color) stops"
+        )
+
+    @property
+    def stops(self):
+        return self.data
+
+    def interpolate(self, other: "Gradient", amount: float) -> "Gradient":
+        raise TypeError("Gradient interpolation is not implemented yet")
+
+    def to_xml_element(self, et):
+        element = et.Element(self.tag, self._xml_attrs())
+        for pos, color in self.stops:
+            child = color.to_xml_element(et)
+            child.set("pos", fmt_num(pos))
+            element.append(child)
         return element
 
 
