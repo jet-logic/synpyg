@@ -84,7 +84,7 @@ class ParamDescriptorTest(unittest.TestCase):
     def test_trailing_underscore_is_dropped_from_name(self):
         class L(Layer):
             from_ = Param(Real)
-            z = Param(Real, "z-depth")
+            z = Param(Real, name="z-depth")
 
         layer = L("")
         layer.from_ = 1
@@ -93,7 +93,7 @@ class ParamDescriptorTest(unittest.TestCase):
 
     def test_explicit_param_name_is_preserved(self):
         class L(Layer):
-            z = Param(Real, "z-depth")
+            z = Param(Real, name="z-depth")
 
         layer = L("")
         layer.z = 2

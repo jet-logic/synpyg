@@ -26,5 +26,5 @@ InterpolationKind = InterpolationEnumKind()
 
 
 class InterpolationAttr(Attr[str]):
-    def __init__(self, name: str | None = None, **ctx):
-        super().__init__(InterpolationKind, name, **ctx)
+    def __init__(self, **ctx):
+        super().__init__(InterpolationKind, **ctx)

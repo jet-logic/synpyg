@@ -11,8 +11,8 @@ class Attr(Field, Generic[T]):
     different storage strategy (a ``ParamValue``).
     """
 
-    def __init__(self, kind: Kind[T], name: str | None = None, **ctx):
-        super().__init__(name=name, **ctx)
+    def __init__(self, kind: Kind[T], **ctx):
+        super().__init__(**ctx)
         self.kind = kind
 
     @overload

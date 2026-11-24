@@ -98,10 +98,8 @@ class Property(WithXML):
 
 
 class Param(Field):
-    def __init__(
-        self, typed: "ValueKind | type[Value]", name: str | None = None, **ctx
-    ):
-        super().__init__(name=name, **ctx)
+    def __init__(self, typed: "ValueKind | type[Value]", **ctx):
+        super().__init__(**ctx)
         from .value import ValueKind
 
         self.kind = ValueKind.of(typed)

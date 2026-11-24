@@ -28,50 +28,50 @@ _INTERPOLATION_KIND = EnumKind(VALID_INTERPOLATIONS)
 
 
 class StringAttr(Attr[str]):
-    def __init__(self, name: str | None = None, **ctx):
-        super().__init__(String, name, **ctx)
+    def __init__(self, **ctx):
+        super().__init__(String, **ctx)
 
 
 class FloatAttr(Attr[float]):
-    def __init__(self, name: str | None = None, **ctx):
-        super().__init__(Number, name, **ctx)
+    def __init__(self, **ctx):
+        super().__init__(Number, **ctx)
 
 
 class PositiveFloatAttr(Attr[float]):
-    def __init__(self, name: str | None = None, **ctx):
-        super().__init__(PositiveNumber, name, **ctx)
+    def __init__(self, **ctx):
+        super().__init__(PositiveNumber, **ctx)
 
 
 class IntAttr(Attr[int]):
-    def __init__(self, name: str | None = None, **ctx):
-        super().__init__(Integer, name, **ctx)
+    def __init__(self, **ctx):
+        super().__init__(Integer, **ctx)
 
 
 class PositiveIntAttr(Attr[int]):
-    def __init__(self, name: str | None = None, **ctx):
-        super().__init__(PositiveInteger, name, **ctx)
+    def __init__(self, **ctx):
+        super().__init__(PositiveInteger, **ctx)
 
 
 class BoolAttr(Attr[bool]):
-    def __init__(self, name: str | None = None, **ctx):
-        super().__init__(Boolean, name, **ctx)
+    def __init__(self, **ctx):
+        super().__init__(Boolean, **ctx)
 
 
 class TimeAttr(Attr[float]):
-    def __init__(self, name: str | None = None, *, fps_attr: str | None = None, **ctx):
-        super().__init__(TimeKind(fps_attr), name, **ctx)
+    def __init__(self, *, fps_attr: str | None = None, **ctx):
+        super().__init__(TimeKind(fps_attr), **ctx)
 
 
 class StringEnumAttr(Attr[str]):
-    def __init__(self, choices, name: str | None = None, **ctx):
-        super().__init__(EnumKind(choices), name, **ctx)
+    def __init__(self, choices, **ctx):
+        super().__init__(EnumKind(choices), **ctx)
 
 
 class InterpolationAttr(Attr[str]):
-    def __init__(self, name: str | None = None, **ctx):
-        super().__init__(_INTERPOLATION_KIND, name, **ctx)
+    def __init__(self, **ctx):
+        super().__init__(_INTERPOLATION_KIND, **ctx)
 
 
 class QuadFloatAttr(Attr[tuple[float, ...]]):
-    def __init__(self, name: str | None = None, **ctx):
-        super().__init__(QuadFloat, name, **ctx)
+    def __init__(self, **ctx):
+        super().__init__(QuadFloat, **ctx)

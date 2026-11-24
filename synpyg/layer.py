@@ -136,8 +136,8 @@ class OutlineLayer(_ShapeLayer):
     width = Param(Real)
     expand = Param(Real)
     sharp_cusps = Param(Boolean)
-    round_tip_begin = Param(Boolean, "round_tip[0]")
-    round_tip_end = Param(Boolean, "round_tip[1]")
+    round_tip_begin = Param(Boolean, name="round_tip[0]")
+    round_tip_end = Param(Boolean, name="round_tip[1]")
     loopyness = Param(Real)
     homogeneous_width = Param(Boolean)
 
