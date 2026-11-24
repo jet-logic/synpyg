@@ -1,7 +1,9 @@
 from .animated import Animated
 from .base import Base, Param, WithXML, WithFields
 from .ref import Ref
-from .value import Color, Integer, Real, Time, Vector, Boolean, Spline, Transformation
+from .value import (
+    Angle, Color, Gradient, Integer, Real, Time, Vector, Boolean, Spline, Transformation
+)
 from .attrs import BoolAttr, StringAttr
 
 
@@ -145,6 +147,51 @@ class OutlineLayer(_ShapeLayer):
         super().__init__("outline", version="0.1", desc=desc, **kwargs)
 
 
+class _GradientLayer(Layer):
+    """Shared gradient parameter for Synfig's geometric gradient layers."""
+
+    gradient = Param(Gradient)
+
+
+class LinearGradientLayer(_GradientLayer):
+    p1 = Param(Vector)
+    p2 = Param(Vector)
+    loop = Param(Boolean)
+    zigzag = Param(Boolean)
+
+    def __init__(self, desc="", **kwargs):
+        super().__init__("linear_gradient", version="0.0", desc=desc, **kwargs)
+
+
+class RadialGradientLayer(_GradientLayer):
+    center = Param(Vector)
+    radius = Param(Real)
+    loop = Param(Boolean)
+    zigzag = Param(Boolean)
+
+    def __init__(self, desc="", **kwargs):
+        super().__init__("radial_gradient", version="0.1", desc=desc, **kwargs)
+
+
+class ConicalGradientLayer(_GradientLayer):
+    center = Param(Vector)
+    light_angle = Param(Angle)
+    symmetric = Param(Boolean)
+
+    def __init__(self, desc="", **kwargs):
+        super().__init__("conical_gradient", version="0.1", desc=desc, **kwargs)
+
+
+class SpiralGradientLayer(_GradientLayer):
+    center = Param(Vector)
+    radius = Param(Real)
+    angle = Param(Angle)
+    clockwise = Param(Boolean)
+
+    def __init__(self, desc="", **kwargs):
+        super().__init__("spiral_gradient", version="0.1", desc=desc, **kwargs)
+
+
 class MotionBlurLayer(Layer):
     """
     A Synfig Motion Blur layer with all standard parameters.
@@ -197,6 +244,26 @@ class Grouping(Base):
 
     def add_group_layer(self, *args, before: Base | None = None, **kwargs):
         layer = GroupLayer(*args, **kwargs)
+        self.insert_before(before, layer)
+        return layer
+
+    def add_linear_gradient_layer(self, *args, before: Base | None = None, **kwargs):
+        layer = LinearGradientLayer(*args, **kwargs)
+        self.insert_before(before, layer)
+        return layer
+
+    def add_radial_gradient_layer(self, *args, before: Base | None = None, **kwargs):
+        layer = RadialGradientLayer(*args, **kwargs)
+        self.insert_before(before, layer)
+        return layer
+
+    def add_conical_gradient_layer(self, *args, before: Base | None = None, **kwargs):
+        layer = ConicalGradientLayer(*args, **kwargs)
+        self.insert_before(before, layer)
+        return layer
+
+    def add_spiral_gradient_layer(self, *args, before: Base | None = None, **kwargs):
+        layer = SpiralGradientLayer(*args, **kwargs)
         self.insert_before(before, layer)
         return layer
 
