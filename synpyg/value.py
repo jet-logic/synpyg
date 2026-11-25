@@ -91,6 +91,33 @@ class Value(WithFields, WithXML):
         return f"{type(self).__name__}({', '.join(args)})"
 
 
+class ValueNode(Value):
+    """Base class for Synfig ValueNodes (procedural value generators).
+    ValueNodes are typically exported in <defs> and referenced via Ref.
+    """
+
+    node_type = ""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.links = {}
+
+    def to_xml_element(self, et):
+        tag = self.node_type
+        attrs = self._xml_attrs()
+        element = et.Element(tag, attrs)
+
+        for name, value in self.links.items():
+            if isinstance(value, Ref):
+                et.SubElement(element, name, {"use": value.use})
+            elif hasattr(value, "to_xml_element"):
+                child = et.SubElement(element, name)
+                child.append(value.to_xml_element(et))
+            else:
+                raise TypeError(f"Link {name} must be a Value, ValueNode, or Ref")
+        return element
+
+
 class Const(Value):
     """A value whose input checking and text form come from a ``Kind``.
 
@@ -683,4 +710,119 @@ class Transformation(Value):
         for name, value in zip(("offset", "angle", "skew_angle", "scale"), self.data):
             child = et.SubElement(element, name)
             child.append(value.to_xml_element(et))
+        return element
+
+
+class Matrix(Value):
+    """Synfig 3x3 Matrix value."""
+
+    tag = "matrix"
+
+    def __init__(self, data=None, **kwargs):
+        super().__init__(**kwargs)
+        if data is None:
+            # Identity matrix
+            data = (1, 0, 0, 0, 1, 0, 0, 0, 1)
+
+        if isinstance(data, (list, tuple)):
+            if len(data) == 9:
+                self.data = tuple(float(x) for x in data)
+            elif len(data) == 3 and all(len(r) == 3 for r in data):
+                # Flatten 3x3 nested tuple/list
+                self.data = tuple(float(x) for row in data for x in row)
+            else:
+                raise ValueError("Matrix must be 3x3 or 9 elements")
+        else:
+            raise TypeError("Matrix data must be a list or tuple")
+
+    def to_xml_element(self, et):
+        element = et.Element(self.tag, self._xml_attrs())
+        # Synfig typically serializes matrix elements as a flat list of <e> tags
+        for val in self.data:
+            et.SubElement(element, "e").text = fmt_num(val)
+        return element
+
+
+# Add this at the end of synpyg/value.py
+
+
+class List(Value):
+    """A static list of values."""
+
+    tag = "list"
+
+    def __init__(self, items=(), **kwargs):
+        super().__init__(**kwargs)
+        if isinstance(items, List):
+            items = items.data
+        self.data = tuple(items)
+
+    @classmethod
+    def check_value(cls, value):
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, (list, tuple)):
+            return cls(value)
+        raise ValueError("List expects a sequence of Value instances")
+
+    def interpolate(self, other: "List", amount: float) -> "List":
+        raise TypeError("List interpolation is not supported; lists switch discretely")
+
+    def to_xml_element(self, et):
+        element = et.Element(self.tag, self._xml_attrs())
+        for item in self.data:
+            if not isinstance(item, Value):
+                raise TypeError(
+                    f"List items must be Value instances, got {type(item).__name__}"
+                )
+            element.append(item.to_xml_element(et))
+        return element
+
+
+class DynamicList(Value):
+    """An animatable list of values (Synfig dynamic_list).
+    Used for parameters that hold a collection of items that can change over time.
+    """
+
+    tag = "dynamic_list"
+
+    def __init__(self, items=(), type=None, **kwargs):
+        super().__init__(**kwargs)
+        if isinstance(items, DynamicList):
+            items, type = items.data
+        self.data = (tuple(items), type)
+
+    @classmethod
+    def check_value(cls, value):
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, (list, tuple)):
+            return cls(value)
+        raise ValueError("DynamicList expects a sequence of Value instances")
+
+    @property
+    def items(self):
+        return self.data[0]
+
+    @property
+    def type(self):
+        return self.data[1]
+
+    def interpolate(self, other: "DynamicList", amount: float) -> "DynamicList":
+        raise TypeError(
+            "DynamicList interpolation is not supported; lists switch discretely"
+        )
+
+    def to_xml_element(self, et):
+        attrs = self._xml_attrs()
+        if self.type:
+            attrs["type"] = self.type
+        element = et.Element(self.tag, attrs)
+        for item in self.items:
+            entry = et.SubElement(element, "entry")
+            if not isinstance(item, Value):
+                raise TypeError(
+                    f"DynamicList items must be Value instances, got {type(item).__name__}"
+                )
+            entry.append(item.to_xml_element(et))
         return element
