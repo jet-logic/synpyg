@@ -74,7 +74,7 @@ class ExportTest(unittest.TestCase):
 
     def test_bad_nodes(self):
         c = Canvas()
-        for bad in (1.0, "x", Ref("x"), Canvas()):
+        for bad in (1.0, "x", Ref("x")):
             with self.subTest(bad=bad):
                 with self.assertRaises(TypeError):
                     c.export("n", bad)  # type: ignore

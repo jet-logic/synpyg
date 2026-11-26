@@ -401,6 +401,8 @@ class ValueKind(Kind[Value]):
         """Create an :class:`Animated` that produces values of this kind."""
         from .animated import Animated
 
+        if not getattr(self.value_type, "animatable", True):
+            raise TypeError(f"{self.name} values cannot be animated")
         return Animated(self)
 
     def __eq__(self, other: object) -> bool:

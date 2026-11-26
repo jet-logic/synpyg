@@ -1,6 +1,6 @@
-from .animated import Animated
 from .base import Base, Param, WithXML, WithFields
-from .ref import Ref
+from .canvas import Canvas
+from .grouping import Grouping
 from .value import (
     Angle,
     Color,
@@ -16,37 +16,6 @@ from .value import (
     WidthPointList,
 )
 from .attrs import BoolAttr, StringAttr
-
-
-def _animated_times(value, seen: set):
-    """Yield the waypoint times of ``value`` if it is (or refers to) an Animated.
-
-    Refs are followed, and an Animated reached twice (shared, or in a cycle)
-    is read once. Plain ``use`` strings cannot be resolved and are skipped."""
-    stack = [value]
-    while stack:
-        v = stack.pop()
-        if isinstance(v, Ref):
-            v = v.target
-        if isinstance(v, Animated) and id(v) not in seen:
-            seen.add(id(v))
-            for w in v.waypoints:
-                if (t := w.__dict__.get("time")) is not None:
-                    yield t
-                stack.append(w.__dict__.get("value"))  # an Animated may nest a Ref
-
-
-def _times_under(root):
-    """Yield every waypoint time of ``root``'s params and of all layers below it."""
-    seen: set = set()
-    stack = [root]
-    while stack:
-        node = stack.pop()
-        if isinstance(node, Layer):
-            for _, prop in node._enum_params():
-                yield from _animated_times(prop.value, seen)
-        if isinstance(node, Grouping):
-            stack.extend(node)
 
 
 class Layer(WithFields, WithXML, Base):
@@ -238,84 +207,6 @@ class MotionBlurLayer(Layer):
         super().__init__("motion_blur", version="0.1", desc=desc, **kwargs)
 
 
-class Grouping(Base):
-    def time_range(self) -> tuple[float, float] | None:
-        """The earliest and latest waypoint time, in seconds, over the whole
-        layer hierarchy below (and, for a group layer, including) this node.
-
-        Animations a param refers to with ``Ref`` count too. Returns ``None``
-        when nothing is animated."""
-        times = list(_times_under(self))
-        return (min(times), max(times)) if times else None
-
-    def add_solid_color_layer(self, *args, before: Base | None = None, **kwargs):
-        e = SolidColorLayer(*args, **kwargs)
-        self.insert_before(before, e)
-        return e
-
-    def add_circle_layer(self, *args, before: Base | None = None, **kwargs):
-        layer = CircleLayer(*args, **kwargs)
-        self.insert_before(before, layer)
-        return layer
-
-    def add_rectangle_layer(self, *args, before: Base | None = None, **kwargs):
-        layer = RectangleLayer(*args, **kwargs)
-        self.insert_before(before, layer)
-        return layer
-
-    def add_region_layer(self, *args, before: Base | None = None, **kwargs):
-        layer = RegionLayer(*args, **kwargs)
-        self.insert_before(before, layer)
-        return layer
-
-    def add_outline_layer(self, *args, before: Base | None = None, **kwargs):
-        layer = OutlineLayer(*args, **kwargs)
-        self.insert_before(before, layer)
-        return layer
-
-    def add_advanced_outline_layer(self, *args, before: Base | None = None, **kwargs):
-        layer = AdvancedOutlineLayer(*args, **kwargs)
-        self.insert_before(before, layer)
-        return layer
-
-    def add_group_layer(self, *args, before: Base | None = None, **kwargs):
-        layer = GroupLayer(*args, **kwargs)
-        self.insert_before(before, layer)
-        return layer
-
-    def add_linear_gradient_layer(self, *args, before: Base | None = None, **kwargs):
-        layer = LinearGradientLayer(*args, **kwargs)
-        self.insert_before(before, layer)
-        return layer
-
-    def add_radial_gradient_layer(self, *args, before: Base | None = None, **kwargs):
-        layer = RadialGradientLayer(*args, **kwargs)
-        self.insert_before(before, layer)
-        return layer
-
-    def add_conical_gradient_layer(self, *args, before: Base | None = None, **kwargs):
-        layer = ConicalGradientLayer(*args, **kwargs)
-        self.insert_before(before, layer)
-        return layer
-
-    def add_spiral_gradient_layer(self, *args, before: Base | None = None, **kwargs):
-        layer = SpiralGradientLayer(*args, **kwargs)
-        self.insert_before(before, layer)
-        return layer
-
-    def add_motion_blur_layer(self, *args, before: Base | None = None, **kwargs):
-        layer = MotionBlurLayer(*args, **kwargs)
-        self.insert_before(before, layer)
-        return layer
-
-    def add_external_canvas_layer(
-        self, use: str, *args, before: Base | None = None, **kwargs
-    ):
-        layer = ExternalCanvasLayer(use, *args, **kwargs)
-        self.insert_before(before, layer)
-        return layer
-
-
 class GroupLayer(Layer, Grouping):
     origin = Param(Vector)
     transformation = Param(Transformation)
@@ -329,44 +220,40 @@ class GroupLayer(Layer, Grouping):
     z_range_position = Param(Real)
     z_range_depth = Param(Real)
     z_range_blur = Param(Real)
+    canvas = Param(Canvas)
 
-    def __init__(self, desc="", **kwargs):
+    def __init__(self, desc="", *, canvas=None, **kwargs):
         super().__init__("group", version="0.1", desc=desc, **kwargs)
+        self.canvas = Canvas() if canvas is None else canvas
 
-    def to_xml_element(self, et):
-        element = super().to_xml_element(et)
+    def _canvas_value(self) -> Canvas:
+        value = self.canvas.value
+        if not isinstance(value, Canvas):
+            raise TypeError("GroupLayer.canvas must contain a Canvas")
+        return value
 
-        canvas_param = et.SubElement(element, "param", {"name": "canvas"})
-        sub_canvas = et.SubElement(canvas_param, "canvas")
+    # Keep the established Grouping API, but make the Canvas value the actual
+    # owner of the child layers instead of maintaining a second child list.
+    def __iter__(self):
+        return iter(self._canvas_value())
 
-        for child in self:
-            if not isinstance(child, Layer):
-                raise TypeError(
-                    f"GroupLayer children must be Layer instances, "
-                    f"got {type(child).__name__}"
-                )
-            sub_canvas.append(child.to_xml_element(et))
+    def insert_before(self, which, *nodes):
+        return self._canvas_value().insert_before(which, *nodes)
 
-        return element
+    def append_child(self, *nodes):
+        return self._canvas_value().append_child(*nodes)
 
+    def first_child(self):
+        return self._canvas_value().first_child()
 
-class ExternalCanvasLayer(Layer):
-    origin = Param(Vector)
+    def last_child(self):
+        return self._canvas_value().last_child()
 
-    def __init__(self, use: str, desc="", **kwargs):
-        if not isinstance(use, str) or not use:
-            raise ValueError("External canvas reference must be a non-empty string")
+    def remove_children(self):
+        return self._canvas_value().remove_children()
 
-        super().__init__("group", version="0.1", desc=desc, **kwargs)
-        self.use = use
-
-    def to_xml_element(self, et):
-        element = super().to_xml_element(et)
-
-        canvas_param = et.SubElement(element, "param", {"name": "canvas"})
-        et.SubElement(canvas_param, "canvas", {"use": self.use})
-
-        return element
+    def children(self):
+        return iter(self)
 
 
 # Synfig registers the PasteCanvas name as an alias for its group layer.

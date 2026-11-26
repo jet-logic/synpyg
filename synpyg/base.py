@@ -88,7 +88,12 @@ class Property(WithXML):
             return et.Element("param", {"name": self.name, "use": self.value.use})
         element = et.Element("param", {"name": self.name})
         if self.value is not None:
-            element.append(self.value.to_xml_element(et))
+            # Some Value types have a distinct representation when nested in
+            # a <param> than when serialized as a document/root element.
+            serializer = getattr(self.value, "to_param_xml_element", None)
+            if serializer is None:
+                serializer = self.value.to_xml_element
+            element.append(serializer(et))
         return element
 
 

@@ -1,10 +1,9 @@
 from types import MappingProxyType
 from typing import Any, Mapping
 from .animated import Animated
-from .base import WithFields, WithXML
-from .attrs import PositiveFloatAttr, PositiveIntAttr, StringAttr, TimeAttr
-from .layer import Grouping, Layer
-from .attrs import QuadFloatAttr
+from .base import WithFields
+from .attrs import PositiveFloatAttr, PositiveIntAttr, QuadFloatAttr, StringAttr, TimeAttr
+from .grouping import Grouping
 from .ref import Ref
 from .value import Value
 
@@ -24,7 +23,9 @@ def _value_slots(where, value):
 
 
 def _embedded(container):
-    """Yield (where, value) for each value or Ref held by a param or waypoint under ``container``."""
+    """Yield every value/Ref held by params below ``container``."""
+    from .layer import Layer
+
     for layer in container:
         if not isinstance(layer, Layer):
             continue  # serializing reports it
@@ -76,7 +77,11 @@ def _find_ref_cycle(defs: Mapping[str, Any]) -> list[str] | None:
     return None
 
 
-class Canvas(WithFields, WithXML, Grouping):
+class Canvas(Value, Grouping):
+    """A canvas value that can also serve as a top-level SIF document."""
+
+    tag = "canvas"
+    animatable = False
     version = StringAttr(required=True)
     width = PositiveIntAttr(required=True)
     height = PositiveIntAttr(required=True)
@@ -94,8 +99,15 @@ class Canvas(WithFields, WithXML, Grouping):
         begin_time=None,
         end_time=None,
         view_box=None,
+        *,
+        use: str | None = None,
+        id: str | None = None,
+        guid: str | None = None,
     ):
-        super().__init__()
+        super().__init__(id=id, guid=guid)
+        if use is not None and (not isinstance(use, str) or not use):
+            raise ValueError("External canvas reference must be a non-empty string")
+        self._use = use
         self.version = version
         self.width = width
         self.height = height
@@ -104,6 +116,52 @@ class Canvas(WithFields, WithXML, Grouping):
         self._assign_given(begin_time=begin_time, end_time=end_time, view_box=view_box)
         self.meta: dict[str, Any] = {}
         self._defs: dict[str, Value | Animated] = {}
+
+    @classmethod
+    def new_animated(cls):
+        raise TypeError("Canvas values cannot be animated")
+
+    @classmethod
+    def check_value(cls, value):
+        """Coerce a string into an external-canvas value."""
+        if isinstance(value, str):
+            return cls(use=value)
+        raise ValueError("Canvas expects a Canvas instance or a non-empty use string")
+
+    @property
+    def use(self) -> str | None:
+        """External canvas reference, or None for an inline canvas."""
+        return self._use
+
+    def _root_attrs(self) -> dict[str, str]:
+        """Return all root-canvas attributes, including Value id/guid fields."""
+        return WithFields._xml_attrs(self)
+
+    def to_param_xml_element(self, et: Any):
+        """Serialize this Canvas as a group layer's <canvas> value."""
+        if self.use is not None:
+            if self.first_child() is not None:
+                raise ValueError("an external Canvas reference cannot contain layers")
+            if self._defs:
+                raise ValueError("an external Canvas reference cannot contain defs")
+            return et.Element("canvas", {"use": self.use})
+
+        if self._defs:
+            raise ValueError(
+                "defs inside a group canvas are not supported; export values "
+                "from the root Canvas instead"
+            )
+
+        from .layer import Layer
+
+        element = et.Element("canvas")
+        for child in self:
+            if not isinstance(child, Layer):
+                raise TypeError(
+                    f"Canvas children must be Layer instances, got {type(child).__name__}"
+                )
+            element.append(child.to_xml_element(et))
+        return element
 
     def fill_time_range(self):
         """Fill unset begin/end times from the canvas animation range.
@@ -122,6 +180,19 @@ class Canvas(WithFields, WithXML, Grouping):
         if "end_time" not in self.__dict__:
             self.end_time = end
         return self
+
+    def __repr__(self) -> str:
+        mode = (
+            f"use={self.use!r}"
+            if self.use is not None
+            else f"layers={sum(1 for _ in self)}"
+        )
+        identity = ""
+        if self.__dict__.get("id"):
+            identity += f", id={self.id!r}"
+        if self.__dict__.get("guid"):
+            identity += f", guid={self.guid!r}"
+        return f"Canvas({mode}{identity})"
 
     @property
     def defs(self) -> Mapping[str, Value | Animated]:
@@ -193,8 +264,12 @@ class Canvas(WithFields, WithXML, Grouping):
             raise ValueError(f"reference cycle: {' -> '.join(cycle)}")
 
     def to_xml_element(self, et: Any):
+        from .layer import Layer
+
+        if self.use is not None:
+            raise ValueError("an external Canvas reference is only valid in a group layer")
         self.check_defs()
-        root = et.Element("canvas", self._xml_attrs())
+        root = et.Element("canvas", self._root_attrs())
         if self._defs:
             defs = et.SubElement(root, "defs")
             for node in self._defs.values():

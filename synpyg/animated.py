@@ -126,6 +126,8 @@ class Animated(WithFields):
         kind = ValueKind.of(kind)
         if not kind.tag:
             raise TypeError(f"{kind.name} has no tag and cannot be animated")
+        if not getattr(kind.value_type, "animatable", True):
+            raise TypeError(f"{kind.name} values cannot be animated")
 
         self.kind = kind
         self.waypoints: list[Waypoint] = []
