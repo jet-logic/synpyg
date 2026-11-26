@@ -84,9 +84,12 @@ class Property(WithXML):
 
         if not self.name:
             raise ValueError("Property has no name")
+        attrs = {"name": self.name}
+        attrs.update(getattr(self, "_extra_xml_attrs", {}))
         if isinstance(self.value, Ref):  # `use` and a child element exclude each other
-            return et.Element("param", {"name": self.name, "use": self.value.use})
-        element = et.Element("param", {"name": self.name})
+            attrs["use"] = self.value.use
+            return et.Element("param", attrs)
+        element = et.Element("param", attrs)
         if self.value is not None:
             # Some Value types have a distinct representation when nested in
             # a <param> than when serialized as a document/root element.

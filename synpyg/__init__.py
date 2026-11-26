@@ -1,9 +1,25 @@
-"""Synpyg, is a Python library for programmatically creating and generating Synfig animation files (.sif)."""
+"""Synpyg: Python tools for creating and reading Synfig animation files."""
 
-"""A work in progress."""
+from .canvas import Canvas
+from .xmlio import (
+    MissingLayerTypeError,
+    SIFParseError,
+    UnsupportedLayerError,
+    UnsupportedValueError,
+    load_sif,
+    parse_sif,
+    register_layer,
+    registered_layers,
+)
 
-"""Synfig
-repository: https://github.com/synfig/synfig
-developer docs: https://synfig-docs-dev.readthedocs.org/
-docs: https://deepwiki.com/synfig/synfig
-"""
+__all__ = [
+    "Canvas",
+    "MissingLayerTypeError",
+    "SIFParseError",
+    "UnsupportedLayerError",
+    "UnsupportedValueError",
+    "load_sif",
+    "parse_sif",
+    "register_layer",
+    "registered_layers",
+]

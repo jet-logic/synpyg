@@ -118,6 +118,20 @@ class Canvas(Value, Grouping):
         self._defs: dict[str, Value | Animated] = {}
 
     @classmethod
+    def from_xml(cls, source):
+        """Parse a Synfig .sif document from a path, stream, or XML payload."""
+        from .xmlio import parse_sif
+
+        return parse_sif(source)
+
+    @classmethod
+    def from_xml_element(cls, element):
+        """Build a Canvas from an ``xml.etree.ElementTree`` canvas element."""
+        from .xmlio import parse_sif
+
+        return parse_sif(element)
+
+    @classmethod
     def new_animated(cls):
         raise TypeError("Canvas values cannot be animated")
 
@@ -134,8 +148,10 @@ class Canvas(Value, Grouping):
         return self._use
 
     def _root_attrs(self) -> dict[str, str]:
-        """Return all root-canvas attributes, including Value id/guid fields."""
-        return WithFields._xml_attrs(self)
+        """Return root-canvas attributes, including preserved unknown fields."""
+        attrs = WithFields._xml_attrs(self)
+        attrs.update(self.__dict__.get("_extra_xml_attrs", {}))
+        return attrs
 
     def to_param_xml_element(self, et: Any):
         """Serialize this Canvas as a group layer's <canvas> value."""
@@ -144,7 +160,13 @@ class Canvas(Value, Grouping):
                 raise ValueError("an external Canvas reference cannot contain layers")
             if self._defs:
                 raise ValueError("an external Canvas reference cannot contain defs")
-            return et.Element("canvas", {"use": self.use})
+            attrs = {"use": self.use}
+            if self.__dict__.get("id"):
+                attrs["id"] = self.id
+            if self.__dict__.get("guid"):
+                attrs["guid"] = self.guid
+            attrs.update(self.__dict__.get("_extra_xml_attrs", {}))
+            return et.Element("canvas", attrs)
 
         if self._defs:
             raise ValueError(
@@ -154,13 +176,21 @@ class Canvas(Value, Grouping):
 
         from .layer import Layer
 
-        element = et.Element("canvas")
+        explicit = self.__dict__.get("_explicit_xml_attrs", set())
+        root_attrs = self._root_attrs()
+        attrs = {key: root_attrs[key] for key in explicit if key in root_attrs}
+        attrs.update(self.__dict__.get("_extra_xml_attrs", {}))
+        element = et.Element("canvas", attrs)
         for child in self:
             if not isinstance(child, Layer):
                 raise TypeError(
                     f"Canvas children must be Layer instances, got {type(child).__name__}"
                 )
             element.append(child.to_xml_element(et))
+        for extra in self.__dict__.get("_extra_xml_elements", ()):
+            import copy
+
+            element.append(copy.deepcopy(extra))
         return element
 
     def fill_time_range(self):
@@ -280,6 +310,10 @@ class Canvas(Value, Grouping):
                     f"Canvas children must be Layer instances, got {type(child).__name__}"
                 )
             root.append(child.to_xml_element(et))
+        for extra in self.__dict__.get("_extra_xml_elements", ()):
+            import copy
+
+            root.append(copy.deepcopy(extra))
         return root
 
     def save_xml(self, filename):

@@ -78,7 +78,9 @@ class Value(WithFields, WithXML):
 
     def _xml_attrs(self):
         d = self.__dict__
-        return {k: d[k] for k in ("id", "guid") if d.get(k)}
+        attrs = {k: d[k] for k in ("id", "guid") if d.get(k)}
+        attrs.update(d.get("_extra_xml_attrs", {}))
+        return attrs
 
     def __repr__(self) -> str:
         args = [repr(self.__dict__.get("data"))]
@@ -103,10 +105,12 @@ class ValueNode(Value):
         self.links = {}
 
     def to_xml_element(self, et):
+        from .ref import Ref
+
         tag = self.node_type
         attrs = self._xml_attrs()
+        attrs.update(self.__dict__.get("_extra_xml_attrs", {}))
         element = et.Element(tag, attrs)
-
         for name, value in self.links.items():
             if isinstance(value, Ref):
                 et.SubElement(element, name, {"use": value.use})
@@ -176,6 +180,16 @@ class Boolean(Const):
 class String(Const):
     tag = "string"
     data_kind = kinds.String
+
+    def to_xml_element(self, et):
+        # Preserve the text-content representation when one was read from a
+        # SIF file. Programmatically-created strings retain the historic
+        # value-attribute representation for backwards compatibility.
+        if self.__dict__.get("_xml_text_content"):
+            element = et.Element(self.tag, self._xml_attrs())
+            element.text = self.data
+            return element
+        return super().to_xml_element(et)
 
 
 class Angle(_Summable):
@@ -367,6 +381,8 @@ class ValueKind(Kind[Value]):
         if isinstance(value, Ref):  # a reference stands in for a value
             value.check_kind(self)
             return value
+        if isinstance(value, ValueNode):
+            return value
         return self.value_type.coerce(value)
 
     def dump(self, value: Value) -> str:
@@ -518,7 +534,7 @@ class Spline(Value):
         return self.data[1]
 
     def to_xml_element(self, et):
-        attrs = {"type": "bline_point"}
+        attrs = {"type": "bline_point", **self._xml_attrs()}
         if self.loop:
             attrs["loop"] = "true"
         element = et.Element("bline", attrs)
@@ -605,7 +621,7 @@ class WidthPointList(Value):
         return self.data[1]
 
     def to_xml_element(self, et):
-        attrs = {"type": "width_point"}
+        attrs = {"type": "width_point", **self._xml_attrs()}
         if self.loop:
             attrs["loop"] = "true"
         element = et.Element(self.tag, attrs)
@@ -678,7 +694,7 @@ class DashItemList(Value):
         return self.data[1]
 
     def to_xml_element(self, et):
-        attrs = {"type": "dash_item"}
+        attrs = {"type": "dash_item", **self._xml_attrs()}
         if self.loop:
             attrs["loop"] = "true"
         element = et.Element(self.tag, attrs)

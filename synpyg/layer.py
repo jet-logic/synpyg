@@ -1,6 +1,7 @@
 from .base import Base, Param, WithXML, WithFields
 from .canvas import Canvas
 from .grouping import Grouping
+from .ref import Ref
 from .value import (
     Angle,
     Color,
@@ -54,7 +55,9 @@ class Layer(WithFields, WithXML, Base):
             self.group = group
 
     def to_xml_element(self, et):
-        element = et.Element("layer", self._xml_attrs())
+        attrs = self._xml_attrs()
+        attrs.update(self.__dict__.get("_extra_xml_attrs", {}))
+        element = et.Element("layer", attrs)
         for _, prop in self._enum_params():
             if prop.has_value:
                 element.append(prop.to_xml_element(et))
@@ -228,13 +231,18 @@ class GroupLayer(Layer, Grouping):
 
     def _canvas_value(self) -> Canvas:
         value = self.canvas.value
+        if isinstance(value, Ref):
+            raise TypeError("an externally referenced group canvas has no editable local layer tree")
         if not isinstance(value, Canvas):
-            raise TypeError("GroupLayer.canvas must contain a Canvas")
+            raise TypeError("GroupLayer.canvas must contain a Canvas or Ref")
         return value
 
     # Keep the established Grouping API, but make the Canvas value the actual
     # owner of the child layers instead of maintaining a second child list.
     def __iter__(self):
+        value = self.canvas.value
+        if isinstance(value, Ref):
+            return iter(())
         return iter(self._canvas_value())
 
     def insert_before(self, which, *nodes):

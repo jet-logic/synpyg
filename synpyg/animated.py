@@ -1,7 +1,7 @@
 from .attrs import FloatAttr, InterpolationAttr, StringAttr, StringEnumAttr, TimeAttr
 from .ref import Ref
 from .timeutil import tosec
-from .value import Value, ValueKind
+from .value import Value, ValueKind, ValueNode
 from .base import WithFields, WithXML
 from .track.timecmp import same_time as _same_time
 
@@ -81,6 +81,11 @@ class Waypoint(WithFields, WithXML):
     continuity = FloatAttr()
     bias = FloatAttr()
 
+    def _xml_attrs(self):
+        attrs = super()._xml_attrs()
+        attrs.update(self.__dict__.get("_extra_xml_attrs", {}))
+        return attrs
+
     def to_xml_element(self, et):
         try:
             value = self.value
@@ -142,6 +147,7 @@ class Animated(WithFields):
 
     def _xml_attrs(self) -> dict[str, str]:
         attrs = super()._xml_attrs()
+        attrs.update(self.__dict__.get("_extra_xml_attrs", {}))
         for k in ("id", "guid"):  # an empty id means "none", as for Value
             if attrs.get(k) == "":
                 del attrs[k]
@@ -167,6 +173,8 @@ class Animated(WithFields):
             except ValueError as e:
                 raise ValueError(f"waypoint at {at!r}s: {e}") from None
             self._reject_self_reference(value)
+        elif isinstance(value, ValueNode):
+            pass  # Its output kind is supplied by the owning Animated.
         elif isinstance(value, Value) and not isinstance(value, self.kind.value_type):
             raise ValueError(
                 f"waypoint at {at!r}s holds {type(value).__name__}, "
@@ -425,6 +433,13 @@ class Animated(WithFields):
                 value = target._at(time, seen)
             else:
                 value = target
+        from .value import ValueNode
+
+        if isinstance(value, ValueNode):
+            raise ValueError(
+                f"cannot evaluate waypoint at {waypoint.time!r}s: "
+                f"{type(value).__name__} value nodes are not evaluatable yet"
+            )
         if not isinstance(value, self.kind.value_type):
             raise ValueError(
                 f"waypoint at {waypoint.time!r}s has {type(value).__name__}, "
