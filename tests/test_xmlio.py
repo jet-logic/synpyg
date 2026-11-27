@@ -64,6 +64,32 @@ class CanvasXMLParseTests(unittest.TestCase):
         after = ET.tostring(parsed.to_xml_element(ET), encoding="unicode")
         self.assertEqual(after, before)
 
+    def test_canvas_metadata_properties_round_trip(self):
+        canvas = Canvas(name="A title", desc="A description", author="An artist")
+        parsed = parse_sif(ET.tostring(canvas.to_xml_element(ET), encoding="unicode"))
+        self.assertEqual((parsed.name, parsed.desc, parsed.author),
+                         ("A title", "A description", "An artist"))
+        self.assertEqual(parsed.meta, {
+            "name": "A title", "desc": "A description", "author": "An artist"
+        })
+
+    def test_canvas_metadata_updates_preserve_meta_encoding(self):
+        source = '''<canvas version="1.2">
+          <meta name="name">Old title</meta>
+          <meta name="desc" content="Old description" />
+          <meta name="author">Old author</meta>
+          <meta name="custom">Keep me</meta>
+        </canvas>'''
+        canvas = parse_sif(source)
+        canvas.name = "New title"
+        canvas.desc = "New description"
+        canvas.author = None
+        output = canvas.to_xml_element(ET)
+        self.assertEqual(output.find("meta[@name='name']").text, "New title")
+        self.assertEqual(output.find("meta[@name='desc']").get("content"), "New description")
+        self.assertIsNone(output.find("meta[@name='author']"))
+        self.assertEqual(output.find("meta[@name='custom']").text, "Keep me")
+
     def test_parse_external_canvas_reference(self):
         source = '''<canvas version="1.2" width="480" height="270" fps="24">
           <layer type="group" version="0.1" active="true">

@@ -100,6 +100,9 @@ class Canvas(Value, Grouping):
         end_time=None,
         view_box=None,
         *,
+        name: str | None = None,
+        desc: str | None = None,
+        author: str | None = None,
         use: str | None = None,
         id: str | None = None,
         guid: str | None = None,
@@ -115,6 +118,7 @@ class Canvas(Value, Grouping):
         # optional attributes stay unset (and out of the XML) when None
         self._assign_given(begin_time=begin_time, end_time=end_time, view_box=view_box)
         self.meta: dict[str, Any] = {}
+        self._assign_meta(name=name, desc=desc, author=author)
         self._defs: dict[str, Value | Animated] = {}
 
     @classmethod
@@ -146,6 +150,72 @@ class Canvas(Value, Grouping):
     def use(self) -> str | None:
         """External canvas reference, or None for an inline canvas."""
         return self._use
+
+    def _assign_meta(self, *, name=None, desc=None, author=None) -> None:
+        for key, value in (("name", name), ("desc", desc), ("author", author)):
+            if value is not None:
+                setattr(self, key, value)
+
+    @property
+    def name(self) -> str | None:
+        """Canvas name, stored as a ``meta`` element."""
+        return self.meta.get("name")
+
+    @name.setter
+    def name(self, value: str | None) -> None:
+        self._set_meta("name", value)
+
+    @property
+    def desc(self) -> str | None:
+        """Canvas description, stored as a ``meta`` element."""
+        return self.meta.get("desc")
+
+    @desc.setter
+    def desc(self, value: str | None) -> None:
+        self._set_meta("desc", value)
+
+    @property
+    def author(self) -> str | None:
+        """Canvas author, stored as a ``meta`` element."""
+        return self.meta.get("author")
+
+    @author.setter
+    def author(self, value: str | None) -> None:
+        self._set_meta("author", value)
+
+    def _set_meta(self, key: str, value: str | None) -> None:
+        if value is None:
+            self.meta.pop(key, None)
+        elif not isinstance(value, str):
+            raise TypeError(f"canvas {key} must be a string or None")
+        else:
+            self.meta[key] = value
+
+    def _append_meta_xml(self, element, et) -> None:
+        """Append preserved extra elements, synchronizing the metadata map."""
+        import copy
+
+        represented = set()
+        for extra in self.__dict__.get("_extra_xml_elements", ()):
+            child = copy.deepcopy(extra)
+            if child.tag == "meta":
+                key = child.get("name")
+                if key in ("name", "desc", "author") and key not in self.meta:
+                    continue
+                if key in self.meta:
+                    value = str(self.meta[key])
+                    if "content" in child.attrib:
+                        child.set("content", value)
+                        child.text = None
+                    else:
+                        child.text = value
+                    represented.add(key)
+            element.append(child)
+        for key, value in self.meta.items():
+            if key not in represented:
+                child = et.Element("meta", {"name": key})
+                child.text = str(value)
+                element.append(child)
 
     def _root_attrs(self) -> dict[str, str]:
         """Return root-canvas attributes, including preserved unknown fields."""
@@ -187,10 +257,7 @@ class Canvas(Value, Grouping):
                     f"Canvas children must be Layer instances, got {type(child).__name__}"
                 )
             element.append(child.to_xml_element(et))
-        for extra in self.__dict__.get("_extra_xml_elements", ()):
-            import copy
-
-            element.append(copy.deepcopy(extra))
+        self._append_meta_xml(element, et)
         return element
 
     def fill_time_range(self):
@@ -310,10 +377,7 @@ class Canvas(Value, Grouping):
                     f"Canvas children must be Layer instances, got {type(child).__name__}"
                 )
             root.append(child.to_xml_element(et))
-        for extra in self.__dict__.get("_extra_xml_elements", ()):
-            import copy
-
-            root.append(copy.deepcopy(extra))
+        self._append_meta_xml(root, et)
         return root
 
     def save_xml(self, filename):
