@@ -1,6 +1,13 @@
 """Shared layer-container behaviour for canvases and group layers."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from .base import Base
+
+if TYPE_CHECKING:
+    from .layer import Layer
 
 
 def _animated_times(value, seen: set):
@@ -38,6 +45,55 @@ def _times_under(root):
 
 class Grouping(Base):
     """A tree-like container of Synfig layers."""
+
+    def enum_layer_type(self, kind: type):
+        """Yield descendant layers that are instances of ``kind``.
+
+        The traversal is depth-first in layer order. Matching group layers are
+        yielded before searching their nested canvases.
+        """
+        from .layer import Layer
+
+        stack = list(reversed(list(self)))
+        while stack:
+            layer = stack.pop()
+            if isinstance(layer, Layer) and isinstance(layer, kind):
+                yield layer
+            if isinstance(layer, Grouping):
+                stack.extend(reversed(list(layer)))
+
+    def find_layer(
+        self,
+        index: int | str,
+        kind: type[Layer],
+        default: Layer | None = None,
+    ) -> Layer:
+        """Find a descendant layer by its zero-based index or description.
+
+        String indexes match ``layer.desc`` exactly. If descriptions are not
+        unique, the first matching layer in depth-first layer order is returned.
+        """
+        if isinstance(index, str):
+            for layer in self.enum_layer_type(kind):
+                if getattr(layer, "desc", None) == index:
+                    return layer
+
+            if default is not None:
+                return default
+            raise LookupError(f"no descendant <{kind.__name__}> with desc={index!r}")
+
+        if isinstance(index, bool) or not isinstance(index, int):
+            raise TypeError("index must be an integer or a description string")
+        if index < 0:
+            raise IndexError("index must be non-negative")
+
+        for position, layer in enumerate(self.enum_layer_type(kind)):
+            if position == index:
+                return layer
+
+        if default is not None:
+            return default
+        raise IndexError(f"no descendant <{kind.__name__}> at index {index}")
 
     def time_range(self) -> tuple[float, float] | None:
         """Return the earliest/latest waypoint time below this container."""
