@@ -1,6 +1,6 @@
 """Synpyg: Python tools for creating and reading Synfig animation files."""
 
-from .canvas import Canvas
+from .canvas import Canvas, CanvasKeyframe
 from .xmlio import (
     MissingLayerTypeError,
     SIFParseError,
@@ -14,6 +14,7 @@ from .xmlio import (
 
 __all__ = [
     "Canvas",
+    "CanvasKeyframe",
     "MissingLayerTypeError",
     "SIFParseError",
     "UnsupportedLayerError",

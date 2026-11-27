@@ -90,6 +90,42 @@ class CanvasXMLParseTests(unittest.TestCase):
         self.assertIsNone(output.find("meta[@name='author']"))
         self.assertEqual(output.find("meta[@name='custom']").text, "Keep me")
 
+    def test_canvas_keyframes_round_trip(self):
+        canvas = Canvas(fps=12)
+        first = canvas.add_keyframe("0f", "Opening pose")
+        second = canvas.add_keyframe("1s 6f", "Turn", active=False)
+        self.assertEqual(first.time, 0.0)
+        self.assertEqual(second.time, 1.5)
+
+        parsed = parse_sif(ET.tostring(canvas.to_xml_element(ET), encoding="unicode"))
+        self.assertEqual(
+            [(kf.time, kf.description, kf.active) for kf in parsed.keyframes],
+            [(0.0, "Opening pose", True), (1.5, "Turn", False)],
+        )
+        xml_keyframes = parsed.to_xml_element(ET).findall("keyframe")
+        self.assertEqual([node.get("time") for node in xml_keyframes], ["0f", "18f"])
+        self.assertEqual([node.get("active") for node in xml_keyframes], ["true", "false"])
+
+    def test_canvas_keyframe_parses_default_active_and_empty_description(self):
+        canvas = parse_sif(
+            '<canvas version="1.2" fps="24">'
+            '<keyframe time="12f" />'
+            '</canvas>'
+        )
+        keyframe = canvas.keyframes[0]
+        self.assertEqual(keyframe.time, 0.5)
+        self.assertEqual(keyframe.description, "")
+        self.assertTrue(keyframe.active)
+
+    def test_canvas_keyframe_requires_valid_time(self):
+        for xml in (
+            '<canvas version="1.2"><keyframe /></canvas>',
+            '<canvas version="1.2"><keyframe time="not-a-time" /></canvas>',
+            '<canvas version="1.2"><keyframe time="1s" active="maybe" /></canvas>',
+        ):
+            with self.subTest(xml=xml), self.assertRaises(SIFParseError):
+                parse_sif(xml)
+
     def test_parse_external_canvas_reference(self):
         source = '''<canvas version="1.2" width="480" height="270" fps="24">
           <layer type="group" version="0.1" active="true">

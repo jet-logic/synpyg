@@ -3,6 +3,8 @@ from typing import Any, Mapping
 from .animated import Animated
 from .base import WithFields
 from .attrs import PositiveFloatAttr, PositiveIntAttr, QuadFloatAttr, StringAttr, TimeAttr
+from .kinds import Boolean
+from .timeutil import fmt_time, tosec
 from .grouping import Grouping
 from .ref import Ref
 from .value import Value
@@ -77,6 +79,37 @@ def _find_ref_cycle(defs: Mapping[str, Any]) -> list[str] | None:
     return None
 
 
+class CanvasKeyframe:
+    """A named time marker on a top-level Synfig canvas.
+
+    This is distinct from an animation ``Waypoint``: a canvas keyframe marks
+    a time in the timeline and carries an optional human-readable description.
+    ``time`` is stored in seconds; frame strings are resolved using the
+    containing canvas frame rate.
+    """
+
+    def __init__(self, time, description: str = "", *, active: bool = True, fps: float = 24.0):
+        self.time = tosec(time, fps)
+        self.fps = fps
+        if not isinstance(description, str):
+            raise TypeError("keyframe description must be a string")
+        self.description = description
+        self.active = Boolean.coerce(active, name="keyframe active")
+
+    def to_xml_element(self, et, *, fps: float | None = None):
+        element = et.Element("keyframe", {
+            "time": fmt_time(self.time, self.fps if fps is None else fps),
+            "active": Boolean.dump(self.active),
+        })
+        if self.description:
+            element.text = self.description
+        return element
+
+    def __repr__(self) -> str:
+        return (f"CanvasKeyframe(time={self.time!r}, "
+                f"description={self.description!r}, active={self.active!r})")
+
+
 class Canvas(Value, Grouping):
     """A canvas value that can also serve as a top-level SIF document."""
 
@@ -119,6 +152,7 @@ class Canvas(Value, Grouping):
         self._assign_given(begin_time=begin_time, end_time=end_time, view_box=view_box)
         self.meta: dict[str, Any] = {}
         self._assign_meta(name=name, desc=desc, author=author)
+        self.keyframes: list[CanvasKeyframe] = []
         self._defs: dict[str, Value | Animated] = {}
 
     @classmethod
@@ -217,6 +251,20 @@ class Canvas(Value, Grouping):
                 child.text = str(value)
                 element.append(child)
 
+    def add_keyframe(
+        self, time, description: str = "", *, active: bool = True
+    ) -> CanvasKeyframe:
+        """Add a canvas timeline keyframe and return it.
+
+        ``time`` accepts seconds or Synfig time strings such as ``"12f"``;
+        frame values are resolved using this canvas's ``fps``.
+        """
+        if self.use is not None:
+            raise ValueError("external canvas references cannot contain keyframes")
+        keyframe = CanvasKeyframe(time, description, active=active, fps=self.fps)
+        self.keyframes.append(keyframe)
+        return keyframe
+
     def _root_attrs(self) -> dict[str, str]:
         """Return root-canvas attributes, including preserved unknown fields."""
         attrs = WithFields._xml_attrs(self)
@@ -243,6 +291,8 @@ class Canvas(Value, Grouping):
                 "defs inside a group canvas are not supported; export values "
                 "from the root Canvas instead"
             )
+        if self.keyframes:
+            raise ValueError("keyframes inside a group canvas are not supported")
 
         from .layer import Layer
 
@@ -367,6 +417,14 @@ class Canvas(Value, Grouping):
             raise ValueError("an external Canvas reference is only valid in a group layer")
         self.check_defs()
         root = et.Element("canvas", self._root_attrs())
+        self._append_meta_xml(root, et)
+        for keyframe in self.keyframes:
+            if not isinstance(keyframe, CanvasKeyframe):
+                raise TypeError(
+                    "Canvas.keyframes must contain CanvasKeyframe instances, "
+                    f"got {type(keyframe).__name__}"
+                )
+            root.append(keyframe.to_xml_element(et, fps=self.fps))
         if self._defs:
             defs = et.SubElement(root, "defs")
             for node in self._defs.values():
@@ -377,7 +435,6 @@ class Canvas(Value, Grouping):
                     f"Canvas children must be Layer instances, got {type(child).__name__}"
                 )
             root.append(child.to_xml_element(et))
-        self._append_meta_xml(root, et)
         return root
 
     def save_xml(self, filename):

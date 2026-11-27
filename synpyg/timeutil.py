@@ -1,4 +1,5 @@
 import math
+import re
 from typing import Any
 from .numfmt import fmt_num
 
@@ -21,6 +22,37 @@ def tosec(value: Any, fps: float | None = None) -> float:
 
 
 def _parse(s: str, fps: float | None, original: str) -> float:
+    # Synfig time strings may combine units, e.g. ``1s 6f``.
+    if " " in s.strip():
+        token_re = re.compile(r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))(ms|h|m|s|f)")
+        position = 0
+        total = 0.0
+        tokens = list(token_re.finditer(s))
+        if not tokens:
+            raise ValueError(f"Invalid time {original!r}")
+        for token in tokens:
+            if s[position:token.start()].strip():
+                raise ValueError(f"Invalid time {original!r}")
+            amount = float(token.group(1))
+            unit = token.group(2)
+            if unit == "ms":
+                total += amount / 1000.0
+            elif unit == "s":
+                total += amount
+            elif unit == "m":
+                total += amount * 60.0
+            elif unit == "h":
+                total += amount * 3600.0
+            else:
+                if fps is None or not math.isfinite(fps) or fps <= 0:
+                    if amount == 0 and fps is None:
+                        continue
+                    raise ValueError("Frames require fps: " + repr(original))
+                total += amount / fps
+            position = token.end()
+        if s[position:].strip():
+            raise ValueError(f"Invalid time {original!r}")
+        return total
     if s.endswith("ms"):
         return float(s[:-2]) / 1000
     if s.endswith("s"):
@@ -44,5 +76,9 @@ def _parse(s: str, fps: float | None, original: str) -> float:
     return float(s)
 
 
-def fmt_time(seconds: float) -> str:
+def fmt_time(seconds: float, fps: float | None = None) -> str:
+    if fps is not None and math.isfinite(fps) and fps > 0:
+        frames = round(seconds * fps)
+        if math.isclose(seconds * fps, frames, rel_tol=0.0, abs_tol=1e-9):
+            return f"{frames}f"
     return fmt_num(seconds) + "s"

@@ -16,7 +16,7 @@ from xml.etree import ElementTree as ET
 
 from .animated import Animated
 from .base import Param, Property
-from .canvas import Canvas
+from .canvas import Canvas, CanvasKeyframe
 from .fields import Attr
 from .layer import (
     AdvancedOutlineLayer,
@@ -35,6 +35,7 @@ from .layer import (
 )
 from .ref import Ref
 from .timeutil import tosec
+from .kinds import Boolean as BooleanKind
 from .value import (
     Angle,
     Boolean,
@@ -750,6 +751,22 @@ def _parse_layer(element: ET.Element, *, fps: float, where: str) -> Layer:
     return layer
 
 
+def _parse_canvas_keyframe(
+    element: ET.Element, *, fps: float, where: str
+) -> CanvasKeyframe:
+    raw_time = element.get("time")
+    if raw_time is None:
+        raise SIFParseError(f"{where}: missing required time attribute")
+    try:
+        time = tosec(raw_time, fps)
+        active = BooleanKind.coerce(element.get("active", "true"), name=f"{where}@active")
+    except (TypeError, ValueError) as exc:
+        raise SIFParseError(f"{where}: {exc}") from exc
+    if len(element):
+        raise SIFParseError(f"{where}: keyframe may contain text only")
+    return CanvasKeyframe(time, element.text or "", active=active, fps=fps)
+
+
 def _parse_canvas_root(element: ET.Element) -> Canvas:
     if element.tag != "canvas":
         raise SIFParseError(f"document root must be <canvas>, got <{element.tag}>")
@@ -796,6 +813,10 @@ def _parse_canvas_root(element: ET.Element) -> Canvas:
             _parse_defs(canvas, child, fps=canvas.fps, where=child_where)
         elif child.tag == "layer":
             canvas.append_child(_parse_layer(child, fps=canvas.fps, where=child_where))
+        elif child.tag == "keyframe":
+            canvas.keyframes.append(
+                _parse_canvas_keyframe(child, fps=canvas.fps, where=child_where)
+            )
         else:
             if child.tag == "meta":
                 name = child.get("name")
